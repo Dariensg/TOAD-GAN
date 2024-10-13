@@ -7,6 +7,7 @@ import torch.optim as optim
 from torch.nn.functional import interpolate
 from loguru import logger
 from tqdm import tqdm
+from utils import get_discriminator1_scaling_tensor, get_discriminator2_scaling_tensor
 
 import wandb
 
@@ -24,7 +25,7 @@ def update_noise_amplitude(z_prev, real, opt):
     return opt.noise_update * RMSE
 
 
-def train_single_scale(D, G, reals, generators, noise_maps, input_from_prev_scale, noise_amplitudes, opt):
+def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev_scale, noise_amplitudes, opt):
     """ Train one scale. D and G are the current discriminator and generator, reals are the scaled versions of the
     original level, generators and noise_maps contain information from previous scales and will receive information in
     this scale, input_from_previous_scale holds the noise map and images from the previous scale, noise_amplitudes hold
@@ -50,9 +51,11 @@ def train_single_scale(D, G, reals, generators, noise_maps, input_from_prev_scal
         pad_image = nn.ReflectionPad2d(padsize)
 
     # setup optimizer
-    optimizerD = optim.Adam(D.parameters(), lr=opt.lr_d, betas=(opt.beta1, 0.999))
+    optimizerD1 = optim.Adam(D1.parameters(), lr=opt.lr_d, betas=(opt.beta1, 0.999))
+    optimizerD2 = optim.Adam(D2.parameters(), lr=opt.lr_d, betas=(opt.beta1, 0.999))
     optimizerG = optim.Adam(G.parameters(), lr=opt.lr_g, betas=(opt.beta1, 0.999))
-    schedulerD = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizerD, milestones=[1600, 2500], gamma=opt.gamma)
+    schedulerD1 = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizerD1, milestones=[1600, 2500], gamma=opt.gamma)
+    schedulerD2 = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizerD2, milestones=[1600, 2500], gamma=opt.gamma)
     schedulerG = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizerG, milestones=[1600, 2500], gamma=opt.gamma)
 
     if current_scale == 0:  # Generate new noise
@@ -72,15 +75,8 @@ def train_single_scale(D, G, reals, generators, noise_maps, input_from_prev_scal
         # (1) Update D network: maximize D(x) + D(G(z))
         ###########################
         for j in range(opt.Dsteps):
-            # train with real
-            D.zero_grad()
-
-            output = D(real).to(opt.device)
-
-            errD_real = -output.mean()
-            errD_real.backward(retain_graph=True)
-
-            # train with fake
+            
+            # generate fake
             if (j == 0) & (epoch == 0):
                 if current_scale == 0:  # If we are in the lowest scale, noise is generated from scratch
                     prev = torch.zeros(1, opt.nc_current, nzx, nzy).to(opt.device)
@@ -125,25 +121,67 @@ def train_single_scale(D, G, reals, generators, noise_maps, input_from_prev_scal
             noise = opt.noise_amp * noise_ + prev
             fake = G(noise.detach(), prev, temperature=1 if current_scale != opt.token_insert else 1)
 
+            # === D1 ===
+
+            # train with real
+            D1.zero_grad()
+
+            output = D1(real).to(opt.device)
+            output *= get_discriminator1_scaling_tensor(opt, output)
+
+            errD1_real = -output.mean()
+            errD1_real.backward(retain_graph=True)
+
             # Then run the result through the discriminator
-            output = D(fake.detach())
-            errD_fake = output.mean()
+            output = D1(fake.detach())
+            errD1_fake = output.mean()
 
             # Backpropagation
-            errD_fake.backward(retain_graph=False)
+            errD1_fake.backward(retain_graph=False)
 
             # Gradient Penalty
-            gradient_penalty = calc_gradient_penalty(D, real, fake, opt.lambda_grad, opt.device)
-            gradient_penalty.backward(retain_graph=False)
+            D1_gradient_penalty = calc_gradient_penalty(opt, D1, get_discriminator1_scaling_tensor, real, fake, opt.lambda_grad, opt.device)
+            D1_gradient_penalty.backward(retain_graph=False)
 
             # Logging:
             if step % 10 == 0:
-                wandb.log({f"D(G(z))@{current_scale}": errD_fake.item(),
-                           f"D(x)@{current_scale}": -errD_real.item(),
-                           f"gradient_penalty@{current_scale}": gradient_penalty.item()
+                wandb.log({f"D1(G(z))@{current_scale}": errD1_fake.item(),
+                           f"D1(x)@{current_scale}": -errD1_real.item(),
+                           f"D1_gradient_penalty@{current_scale}": D1_gradient_penalty.item()
                            },
                           step=step, sync=False)
-            optimizerD.step()
+            optimizerD1.step()
+
+            # === D2 ===
+
+            # train with real
+            D2.zero_grad()
+
+            output = D2(real).to(opt.device)
+            output *= get_discriminator2_scaling_tensor(opt, output)
+
+            errD2_real = -output.mean()
+            errD2_real.backward(retain_graph=True)
+
+            # Then run the result through the discriminator
+            output = D2(fake.detach())
+            errD2_fake = output.mean()
+
+            # Backpropagation
+            errD2_fake.backward(retain_graph=False)
+
+            # Gradient Penalty
+            D2_gradient_penalty = calc_gradient_penalty(opt, D2, get_discriminator2_scaling_tensor, real, fake, opt.lambda_grad, opt.device)
+            D2_gradient_penalty.backward(retain_graph=False)
+
+            # Logging:
+            if step % 10 == 0:
+                wandb.log({f"D2(G(z))@{current_scale}": errD2_fake.item(),
+                           f"D2(x)@{current_scale}": -errD2_real.item(),
+                           f"D2_gradient_penalty@{current_scale}": D2_gradient_penalty.item()
+                           },
+                          step=step, sync=False)
+            optimizerD2.step()
 
         ############################
         # (2) Update G network: maximize D(G(z))
@@ -152,10 +190,22 @@ def train_single_scale(D, G, reals, generators, noise_maps, input_from_prev_scal
         for j in range(opt.Gsteps):
             G.zero_grad()
             fake = G(noise.detach(), prev.detach(), temperature=1 if current_scale != opt.token_insert else 1)
-            output = D(fake)
+            output_D1 = D1(fake)
+            output_D2 = D2(fake)
 
-            errG = -output.mean()
-            errG.backward(retain_graph=False)
+            output_D1 *= get_discriminator1_scaling_tensor(opt, output_D1)
+            output_D2 *= get_discriminator2_scaling_tensor(opt, output_D2)
+
+            errD1_G = -output_D1.mean()
+            errD2_G = -output_D2.mean()
+
+            errD1_tensor = errD1_G.expand(fake.shape)
+            errD2_tensor = errD2_G.expand(fake.shape)
+
+            combined_error = errD2_tensor.lerp(errD1_tensor, get_discriminator1_scaling_tensor(opt, errD1_tensor))
+
+            combined_error.backward(gradient=torch.ones_like(combined_error), retain_graph=False)
+
             if opt.alpha != 0:  # i. e. we are trying to find an exact recreation of our input in the lat space
                 Z_opt = opt.noise_amp * z_opt + z_prev
                 G_rec = G(Z_opt.detach(), z_prev, temperature=1 if current_scale != opt.token_insert else 1)
@@ -198,11 +248,12 @@ def train_single_scale(D, G, reals, generators, noise_maps, input_from_prev_scal
             wandb.save(real_scaled_path)
 
         # Learning Rate scheduler step
-        schedulerD.step()
+        schedulerD1.step()
+        schedulerD2.step()
         schedulerG.step()
 
     # Save networks
     torch.save(z_opt, "%s/z_opt.pth" % opt.outf)
-    save_networks(G, D, z_opt, opt)
+    save_networks(G, D1, D2, z_opt, opt)
     wandb.save(opt.outf)
     return z_opt, input_from_prev_scale, G

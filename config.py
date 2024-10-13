@@ -17,9 +17,10 @@ def get_arguments():
 
     # load, input, save configurations:
     parser.add_argument("--netG", default="", help="path to netG (to continue training)")
-    parser.add_argument("--netD", default="", help="path to netD (to continue training)")
+    parser.add_argument("--netD1", default="", help="path to netD1 (to continue training)")
+    parser.add_argument("--netD2", default="", help="path to netD2 (to continue training)")
     parser.add_argument("--manualSeed", type=int, help="manual seed")
-    parser.add_argument("--out", help="output folder", default="output")
+    parser.add_argument("--out", help="output folder", default="./output")
     parser.add_argument("--input-dir", help="input image dir", default="input")
     parser.add_argument("--input-name", help="input image name", default="lvl_1-1.txt")
 
@@ -50,6 +51,10 @@ def get_arguments():
     # possible token grouping (Experimental Feature! May break Everything!)
     parser.add_argument("--token_insert", type=int, help="layer in which token groupings will be split out "
                                                          "(<-2 means no grouping at all)", default=-2)
+    
+    # Alpha Layer Type for Multi-Discriminator
+    parser.add_argument("--alpha_layer_type", type=str, help="alpha layer blending for multi-discriminators " 
+                                                         "'half-and-half', 'all-zeros', or 'all-ones')", default="half-and-half")
 
     return parser
 

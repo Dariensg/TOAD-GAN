@@ -21,7 +21,7 @@ if __name__ == '__main__':
         names = os.listdir(directory_gen)
         names.sort()
 
-        target_dir = '/home/awiszus/Project/SinGAN/Output/level_images/' + curr_gen
+        target_dir = '/Users/dgilles2/Github/TOAD-GAN/wandb/Output/level_images/' + curr_gen
         os.makedirs(target_dir, exist_ok=True)
 
         for i in range(min(10, len(names))):

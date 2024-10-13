@@ -5,6 +5,7 @@ import torch
 import torchvision
 from torch.nn.functional import interpolate
 import matplotlib.pyplot as plt
+import math
 
 
 def set_seed(seed=0):
@@ -60,3 +61,23 @@ def prepare_mnist_seed_images():
         tmp = tmp[x_1:x_2, y_1:y_2]
         # tmp = interpolate(tmp.unsqueeze(0).unsqueeze(0), (28, 28))
         plt.imsave('mariokart/seed_road/MNIST_examples/eights/sample_%d.png' % i, tmp[0][0], cmap='Greys')
+
+def get_discriminator1_scaling_tensor(opt, outputD1):
+    if (opt.alpha_layer_type == "half-and-half"):
+        zeros = torch.tensor([[[0.] * math.ceil(outputD1.size()[-1] / 2)] * outputD1.size()[-2]])
+        ones = torch.tensor([[[1.] * math.floor(outputD1.size()[-1] / 2)] * outputD1.size()[-2]])
+        return torch.cat((zeros, ones), 2).to(opt.device)
+    elif (opt.alpha_layer_type == "all-ones"):
+        return torch.ones_like(outputD1).to(opt.device)
+    elif (opt.alpha_layer_type == "all-zeros"):
+        return torch.zeros_like(outputD1).to(opt.device)
+
+def get_discriminator2_scaling_tensor(opt, outputD2):
+    if (opt.alpha_layer_type == "half-and-half"):
+        zeros = torch.tensor([[[0.] * math.ceil(outputD2.size()[-1] / 2)] * outputD2.size()[-2]])
+        ones = torch.tensor([[[1.] * math.floor(outputD2.size()[-1] / 2)] * outputD2.size()[-2]])
+        return torch.cat((ones, zeros), 2).to(opt.device)
+    elif (opt.alpha_layer_type == "all-ones"):
+        return torch.zeros_like(outputD2).to(opt.device)
+    elif (opt.alpha_layer_type == "all-zeros"):
+        return torch.ones_like(outputD2).to(opt.device)
