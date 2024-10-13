@@ -26,8 +26,6 @@ class Level_GeneratorConcatSkip2CleanAdd(nn.Module):
                                             stride=1, padding=0))
         
         nodes = opt.nc_current * real.shape[-2] * real.shape[-1]
-        print(real.shape)
-        exit(0)
         self.fc = nn.Linear(nodes, nodes)
 
     def forward(self, x, y, temperature=1):
