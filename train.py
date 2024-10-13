@@ -63,7 +63,7 @@ def train(generator_real, opt):
             opt.nc_current = len(token_group)
 
         # Initialize models
-        D1, D2, G = init_models(opt)
+        D1, D2, G = init_models(opt, generator_reals[current_scale])
         # If we are seeding, the weights after the seed need to be adjusted
         if current_scale == (opt.token_insert + 1):  # (stop_scale - 1):
             D1, D2, G = restore_weights(D1, D2, G, current_scale, opt)

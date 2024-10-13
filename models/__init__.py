@@ -18,10 +18,10 @@ def weights_init(m):
         m.bias.data.fill_(0)
 
 
-def init_models(opt):
+def init_models(opt, generator_real):
     """ Initialize Generator and Discriminators. """
     # generator initialization:
-    G = Level_GeneratorConcatSkip2CleanAdd(opt).to(opt.device)
+    G = Level_GeneratorConcatSkip2CleanAdd(opt, generator_real).to(opt.device)
     G.apply(weights_init)
     if opt.netG != "":
         G.load_state_dict(torch.load(opt.netG))
