@@ -145,8 +145,8 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
 
             # Logging:
             if step % 10 == 0:
-                wandb.log({f"D1(G(z))@{current_scale}": errD1_fake.item(),
-                           f"D1(x)@{current_scale}": -errD1_real.item(),
+                wandb.log({f"D1(G(z))@{current_scale}": errD1_fake.mean().item(),
+                           f"D1(x)@{current_scale}": -errD1_real.mean().item(),
                            f"D1_gradient_penalty@{current_scale}": D1_gradient_penalty.item()
                            },
                           step=step, sync=False)
@@ -176,8 +176,8 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
 
             # Logging:
             if step % 10 == 0:
-                wandb.log({f"D2(G(z))@{current_scale}": errD2_fake.item(),
-                           f"D2(x)@{current_scale}": -errD2_real.item(),
+                wandb.log({f"D2(G(z))@{current_scale}": errD2_fake.mean().item(),
+                           f"D2(x)@{current_scale}": -errD2_real.mean().item(),
                            f"D2_gradient_penalty@{current_scale}": D2_gradient_penalty.item()
                            },
                           step=step, sync=False)
