@@ -69,15 +69,15 @@ def main():
                      noise_amplitudes, opt, in_s=in_s)
 
     # Generate samples of smaller size than level
-    logger.info("Generating arbitrary sized random samples...")
-    scale_v = 0.8  # Arbitrarily chosen scales
-    scale_h = 0.4
-    real_down = downsample(1, [[scale_v, scale_h]], generator_real, opt.token_list)
-    real_down = real_down[0]
+    # logger.info("Generating arbitrary sized random samples...")
+    # scale_v = 0.8  # Arbitrarily chosen scales
+    # scale_h = 0.4
+    # real_down = downsample(1, [[scale_v, scale_h]], generator_real, opt.token_list)
+    # real_down = real_down[0]
     # necessary for correct input shape
-    in_s = torch.zeros(real_down.shape, device=opt.device)
-    generate_samples(generators, noise_maps, generator_reals, noise_amplitudes, opt, in_s=in_s,
-                     scale_v=scale_v, scale_h=scale_h, save_dir="arbitrary_random_samples")
+    # in_s = torch.zeros(real_down.shape, device=opt.device)
+    # generate_samples(generators, noise_maps, generator_reals, noise_amplitudes, opt, in_s=in_s,
+                     # scale_v=scale_v, scale_h=scale_h, save_dir="arbitrary_random_samples")
     
     wandb.finish()
 
