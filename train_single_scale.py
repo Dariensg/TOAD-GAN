@@ -126,15 +126,15 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
             # train with real
             D1.zero_grad()
 
-            output = D1(real).to(opt.device)
-            output *= get_discriminator1_scaling_tensor(opt, output)
+            output_D1_real = D1(real).to(opt.device)
+            output_D1_real = output_D1_real * get_discriminator1_scaling_tensor(opt, output_D1_real)
 
-            errD1_real = -output.mean()
+            errD1_real = -output_D1_real.mean()
             errD1_real.backward(retain_graph=True)
 
             # Then run the result through the discriminator
-            output = D1(fake.detach())
-            errD1_fake = output.mean()
+            output_D1_fake = D1(fake.detach())
+            errD1_fake = output_D1_fake.mean()
 
             # Backpropagation
             errD1_fake.backward(retain_graph=False)
@@ -157,15 +157,15 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
             # train with real
             D2.zero_grad()
 
-            output = D2(real).to(opt.device)
-            output *= get_discriminator2_scaling_tensor(opt, output)
+            output_D2_real = D2(real).to(opt.device)
+            output_D2_real = output_D2_real * get_discriminator2_scaling_tensor(opt, output_D2_real)
 
-            errD2_real = -output.mean()
+            errD2_real = -output_D2_real.mean()
             errD2_real.backward(retain_graph=True)
 
             # Then run the result through the discriminator
-            output = D2(fake.detach())
-            errD2_fake = output.mean()
+            output_D2_fake = D2(fake.detach())
+            errD2_fake = output_D2_fake.mean()
 
             # Backpropagation
             errD2_fake.backward(retain_graph=False)
@@ -190,14 +190,14 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
         for j in range(opt.Gsteps):
             G.zero_grad()
             fake = G(noise.detach(), prev.detach(), temperature=1 if current_scale != opt.token_insert else 1)
-            output_D1 = D1(fake)
-            output_D2 = D2(fake)
+            output_D1_G = D1(fake)
+            output_D2_G = D2(fake)
 
-            output_D1 *= get_discriminator1_scaling_tensor(opt, output_D1)
-            output_D2 *= get_discriminator2_scaling_tensor(opt, output_D2)
+            output_D1_G = output_D1_G * get_discriminator1_scaling_tensor(opt, output_D1_G)
+            output_D2_G = output_D1_G * get_discriminator2_scaling_tensor(opt, output_D2_G)
 
-            errD1_G = -output_D1.mean()
-            errD2_G = -output_D2.mean()
+            errD1_G = -output_D1_G.mean()
+            errD2_G = -output_D2_G.mean()
 
             errD1_tensor = errD1_G.expand(fake.shape)
             errD2_tensor = errD2_G.expand(fake.shape)

@@ -67,7 +67,7 @@ def calc_gradient_penalty(opt, netD, scalingFunction, real_data, fake_data, LAMB
 
     scaling = scalingFunction(opt, gradient_penalty)
 
-    gradient_penalty *= scaling
+    gradient_penalty = gradient_penalty * scaling
     gradient_penalty = gradient_penalty.mean() * LAMBDA
 
     return gradient_penalty
