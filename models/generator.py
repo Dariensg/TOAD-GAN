@@ -34,8 +34,6 @@ class Level_GeneratorConcatSkip2CleanAdd(nn.Module):
         x = self.tail(x)
 
         x_shape = x.shape
-        print("x shape:", x.shape)
-        print("x flatten shape:", x.flatten().shape)
         x = self.fc(x.flatten())
         x = x.reshape(x_shape)
 
