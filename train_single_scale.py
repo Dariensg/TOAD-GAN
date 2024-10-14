@@ -130,18 +130,18 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
             output_D1_real = output_D1_real * get_discriminator1_scaling_tensor(opt, output_D1_real)
 
             errD1_real = -output_D1_real
-            errD1_real.backward(gradient=torch.ones_like(combined_error), retain_graph=True)
+            errD1_real.backward(gradient=torch.ones_like(errD1_real), retain_graph=True)
 
             # Then run the result through the discriminator
             output_D1_fake = D1(fake.detach())
             errD1_fake = output_D1_fake
 
             # Backpropagation
-            errD1_fake.backward(gradient=torch.ones_like(combined_error), retain_graph=False)
+            errD1_fake.backward(gradient=torch.ones_like(errD1_fake), retain_graph=False)
 
             # Gradient Penalty
             D1_gradient_penalty = calc_gradient_penalty(opt, D1, get_discriminator1_scaling_tensor, real, fake, opt.lambda_grad, opt.device)
-            D1_gradient_penalty.backward(gradient=torch.ones_like(combined_error), retain_graph=False)
+            D1_gradient_penalty.backward(retain_graph=False)
 
             # Logging:
             if step % 10 == 0:
@@ -161,14 +161,14 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
             output_D2_real = output_D2_real * get_discriminator2_scaling_tensor(opt, output_D2_real)
 
             errD2_real = -output_D2_real
-            errD2_real.backward(gradient=torch.ones_like(combined_error), retain_graph=True)
+            errD2_real.backward(gradient=torch.ones_like(errD2_real), retain_graph=True)
 
             # Then run the result through the discriminator
             output_D2_fake = D2(fake.detach())
             errD2_fake = output_D2_fake
 
             # Backpropagation
-            errD2_fake.backward(gradient=torch.ones_like(combined_error), retain_graph=False)
+            errD2_fake.backward(gradient=torch.ones_like(errD2_fake), retain_graph=False)
 
             # Gradient Penalty
             D2_gradient_penalty = calc_gradient_penalty(opt, D2, get_discriminator2_scaling_tensor, real, fake, opt.lambda_grad, opt.device)
