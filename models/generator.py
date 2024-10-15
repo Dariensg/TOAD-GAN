@@ -25,17 +25,17 @@ class Level_GeneratorConcatSkip2CleanAdd(nn.Module):
         self.tail = nn.Sequential(nn.Conv2d(N, opt.nc_current, kernel_size=(opt.ker_size, opt.ker_size),
                                             stride=1, padding=0))
         
-        nodes = opt.nc_current * real.shape[-2] * real.shape[-1]
-        self.fc = nn.Linear(nodes, nodes)
+        #nodes = opt.nc_current * real.shape[-2] * real.shape[-1]
+        #self.fc = nn.Linear(nodes, nodes)
 
     def forward(self, x, y, temperature=1):
         x = self.head(x)
         x = self.body(x)
         x = self.tail(x)
 
-        x_shape = x.shape
-        x = self.fc(x.flatten())
-        x = x.reshape(x_shape)
+        #x_shape = x.shape
+        #x = self.fc(x.flatten())
+        #x = x.reshape(x_shape)
 
         x = F.softmax(x * temperature, dim=1)  # Softmax is added here to allow for the temperature parameter
         ind = int((y.shape[2] - x.shape[2]) / 2)
