@@ -127,14 +127,13 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
             D1.zero_grad()
 
             output_D1_real = D1(real).to(opt.device)
-            output_D1_real = output_D1_real * get_discriminator1_scaling_tensor(opt, output_D1_real)
 
             errD1_real = -output_D1_real
             errD1_real.backward(gradient=torch.ones_like(errD1_real), retain_graph=True)
 
             # Then run the result through the discriminator
             output_D1_fake = D1(fake.detach())
-            errD1_fake = output_D1_fake
+            errD1_fake = output_D1_fake * get_discriminator1_scaling_tensor(opt, output_D1_real)
 
             # Backpropagation
             errD1_fake.backward(gradient=torch.ones_like(errD1_fake), retain_graph=False)
@@ -158,14 +157,13 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
             D2.zero_grad()
 
             output_D2_real = D2(real).to(opt.device)
-            output_D2_real = output_D2_real * get_discriminator2_scaling_tensor(opt, output_D2_real)
 
             errD2_real = -output_D2_real
             errD2_real.backward(gradient=torch.ones_like(errD2_real), retain_graph=True)
 
             # Then run the result through the discriminator
             output_D2_fake = D2(fake.detach())
-            errD2_fake = output_D2_fake
+            errD2_fake = output_D2_fake * get_discriminator2_scaling_tensor(opt, output_D2_real)
 
             # Backpropagation
             errD2_fake.backward(gradient=torch.ones_like(errD2_fake), retain_graph=False)
