@@ -192,7 +192,7 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
             output_D2_G = D2(fake)
 
             output_D1_G = output_D1_G * get_discriminator1_scaling_tensor(opt, output_D1_G)
-            output_D2_G = output_D1_G * get_discriminator2_scaling_tensor(opt, output_D2_G)
+            output_D2_G = output_D2_G * get_discriminator2_scaling_tensor(opt, output_D2_G)
 
             errD1_G = -output_D1_G
             errD2_G = -output_D2_G
