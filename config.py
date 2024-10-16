@@ -28,8 +28,19 @@ def get_arguments():
 
     # networks hyper parameters:
     parser.add_argument("--nfc", type=int, help="number of filters for conv layers", default=64)
-    parser.add_argument("--ker_size", type=int, help="kernel size", default=3)
     parser.add_argument("--num_layer", type=int, help="number of layers", default=3)
+
+    parser.add_argument("--g_ker_size", type=int, help="generator kernel size", default=3)
+    parser.add_argument("--g_padding_mode", type=str, help="padding mode for generator ('zeros', 'reflect', 'replicate' or 'circular')", default='replicate')
+    parser.add_argument("--g_padding", type=int, help="padding amount for generator", default=0)
+    parser.add_argument("--g_stride", type=int, help="stride for generator", default=1)
+
+    parser.add_argument("--d_ker_size", type=int, help="discriminator kernel size", default=2)
+    parser.add_argument("--d_padding_mode", type=str, help="padding mode for discriminator ('zeros', 'reflect', 'replicate' or 'circular')", default='replicate')
+    parser.add_argument("--d_padding", type=int, help="padding amount for discriminator", default=0)
+    parser.add_argument("--d_stride", type=int, help="stride for discriminator", default=2)
+
+    parser.add_argument("--no_softmax", type=bool, help="disables generator softmax layer", default=False)
 
     # scaling parameters:
     parser.add_argument("--scales", nargs='+', type=float, help="Scales descending (< 1 and > 0)",
