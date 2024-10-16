@@ -7,9 +7,11 @@ from mariokart.level_image_gen import LevelImageGen as MariokartLevelGen
 from mariokart.special_mariokart_downsampling import special_mariokart_downsampling
 from mario.level_image_gen import LevelImageGen as MarioLevelGen
 from mario.special_mario_downsampling import special_mario_downsampling
-from mario.level_utils import read_level, read_level_from_file
+from mario.level_utils import read_level, read_level_from_file, get_all_tokens
 from config import get_arguments, post_config
+from utils import get_discriminator1_scaling_tensor
 from loguru import logger
+import torch.nn.functional as F
 import wandb
 import sys
 import torch
@@ -17,7 +19,7 @@ import torch
 
 def get_tags(opt):
     """ Get Tags for logging from input name. Helpful for wandb. """
-    return [opt.input_name.split(".")[0]]
+    return [opt.discriminator1_input_name.split(".")[0]]
 
 
 def main():
@@ -56,11 +58,31 @@ def main():
     else:
         NameError("name of --game not recognized. Supported: mario, mariokart")
 
+    all_tokens = get_all_tokens(opt)
+
     # Read level according to input arguments
-    generator_real = read_level(opt, None, replace_tokens).to(opt.device)
+    discriminator1_real = read_level(opt, opt.discriminator1_input_name, all_tokens, replace_tokens).to(opt.device)
+    discriminator2_real = read_level(opt, opt.discriminator2_input_name, all_tokens, replace_tokens).to(opt.device)
+
+    discriminator1_real_length = discriminator1_real.shape[-1]
+    discriminator2_real_length = discriminator2_real.shape[-1]
+
+    if opt.alpha_layer_type == 'half-and-half':
+        if discriminator1_real_length > discriminator2_real_length:
+            # If D1 is longer, pad D2 right
+            discriminator2_real = F.pad(discriminator2_real, (0, discriminator1_real_length - discriminator2_real_length, 0, 0), 'replicate')
+        elif discriminator2_real_length > discriminator1_real_length:
+            # If D2 is longer, pad D1 left
+            discriminator1_real = F.pad(discriminator1_real, (discriminator1_real_length - discriminator1_real_length, 0, 0, 0), 'replicate')
+
+        generator_real = discriminator2_real.lerp(discriminator1_real, get_discriminator1_scaling_tensor(opt, discriminator1_real))
+    elif opt.alpha_layer_type == 'all-ones':
+        generator_real = discriminator1_real
+    elif opt.alpha_layer_type == 'all-zeros':
+        generator_real = discriminator2_real
 
     # Train!
-    generators, noise_maps, generator_reals, noise_amplitudes = train(generator_real, opt)
+    generators, noise_maps, generator_reals, noise_amplitudes = train(generator_real, discriminator1_real, discriminator2_real, opt)
 
     # Generate Samples of same size as level
     logger.info("Finished training! Generating random samples...")

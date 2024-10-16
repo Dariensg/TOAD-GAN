@@ -25,21 +25,23 @@ def update_noise_amplitude(z_prev, real, opt):
     return opt.noise_update * RMSE
 
 
-def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev_scale, noise_amplitudes, opt):
+def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discriminator2_reals, generators, noise_maps, input_from_prev_scale, noise_amplitudes, opt):
     """ Train one scale. D and G are the current discriminator and generator, reals are the scaled versions of the
     original level, generators and noise_maps contain information from previous scales and will receive information in
     this scale, input_from_previous_scale holds the noise map and images from the previous scale, noise_amplitudes hold
     the amplitudes for the noise in all the scales. opt is a namespace that holds all necessary parameters. """
     current_scale = len(generators)
-    real = reals[current_scale]
+    generator_real = generator_reals[current_scale]
+    discriminator1_real = discriminator1_reals[current_scale]
+    discriminator2_real = discriminator2_reals[current_scale]
 
     if opt.game == 'mario':
         token_group = MARIO_TOKEN_GROUPS
     else:  # if opt.game == 'mariokart':
         token_group = MARIOKART_TOKEN_GROUPS
 
-    nzx = real.shape[2]  # Noise size x
-    nzy = real.shape[3]  # Noise size y
+    nzx = generator_real.shape[2]  # Noise size x
+    nzy = generator_real.shape[3]  # Noise size y
 
     padsize = int(1 * opt.num_layer)  # As kernel size is always 3 currently, padsize goes up by one per layer
 
@@ -87,34 +89,34 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
                     opt.noise_amp = 1
                 else:  # First step in NOT the lowest scale
                     # We need to adapt our inputs from the previous scale and add noise to it
-                    prev = draw_concat(generators, noise_maps, reals, noise_amplitudes, input_from_prev_scale,
+                    prev = draw_concat(generators, noise_maps, generator_reals, noise_amplitudes, input_from_prev_scale,
                                        "rand", pad_noise, pad_image, opt)
 
                     # For the seeding experiment, we need to transform from token_groups to the actual token
                     if current_scale == (opt.token_insert + 1):
                         prev = group_to_token(prev, opt.token_list, token_group)
 
-                    prev = interpolate(prev, real.shape[-2:], mode="bilinear", align_corners=False)
+                    prev = interpolate(prev, generator_real.shape[-2:], mode="bilinear", align_corners=False)
                     prev = pad_image(prev)
-                    z_prev = draw_concat(generators, noise_maps, reals, noise_amplitudes, input_from_prev_scale,
+                    z_prev = draw_concat(generators, noise_maps, generator_reals, noise_amplitudes, input_from_prev_scale,
                                          "rec", pad_noise, pad_image, opt)
 
                     # For the seeding experiment, we need to transform from token_groups to the actual token
                     if current_scale == (opt.token_insert + 1):
                         z_prev = group_to_token(z_prev, opt.token_list, token_group)
 
-                    z_prev = interpolate(z_prev, real.shape[-2:], mode="bilinear", align_corners=False)
-                    opt.noise_amp = update_noise_amplitude(z_prev, real, opt)
+                    z_prev = interpolate(z_prev, generator_real.shape[-2:], mode="bilinear", align_corners=False)
+                    opt.noise_amp = update_noise_amplitude(z_prev, generator_real, opt)
                     z_prev = pad_image(z_prev)
             else:  # Any other step
-                prev = draw_concat(generators, noise_maps, reals, noise_amplitudes, input_from_prev_scale,
+                prev = draw_concat(generators, noise_maps, generator_reals, noise_amplitudes, input_from_prev_scale,
                                    "rand", pad_noise, pad_image, opt)
 
                 # For the seeding experiment, we need to transform from token_groups to the actual token
                 if current_scale == (opt.token_insert + 1):
                     prev = group_to_token(prev, opt.token_list, token_group)
 
-                prev = interpolate(prev, real.shape[-2:], mode="bilinear", align_corners=False)
+                prev = interpolate(prev, generator_real.shape[-2:], mode="bilinear", align_corners=False)
                 prev = pad_image(prev)
 
             # After creating our correct noise input, we feed it to the generator:
@@ -126,7 +128,7 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
             # train with real
             D1.zero_grad()
 
-            output_D1_real = D1(real).to(opt.device)
+            output_D1_real = D1(discriminator1_real).to(opt.device)
 
             errD1_real = -output_D1_real
             errD1_real.backward(gradient=torch.ones_like(errD1_real), retain_graph=True)
@@ -139,7 +141,7 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
             errD1_fake.backward(gradient=torch.ones_like(errD1_fake), retain_graph=False)
 
             # Gradient Penalty
-            D1_gradient_penalty = calc_gradient_penalty(opt, D1, get_discriminator1_scaling_tensor, real, fake, opt.lambda_grad, opt.device)
+            D1_gradient_penalty = calc_gradient_penalty(opt, D1, get_discriminator1_scaling_tensor, discriminator1_real, fake, opt.lambda_grad, opt.device)
             D1_gradient_penalty.backward(retain_graph=False)
 
             # Logging:
@@ -156,7 +158,7 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
             # train with real
             D2.zero_grad()
 
-            output_D2_real = D2(real).to(opt.device)
+            output_D2_real = D2(discriminator2_real).to(opt.device)
 
             errD2_real = -output_D2_real
             errD2_real.backward(gradient=torch.ones_like(errD2_real), retain_graph=True)
@@ -169,7 +171,7 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
             errD2_fake.backward(gradient=torch.ones_like(errD2_fake), retain_graph=False)
 
             # Gradient Penalty
-            D2_gradient_penalty = calc_gradient_penalty(opt, D2, get_discriminator2_scaling_tensor, real, fake, opt.lambda_grad, opt.device)
+            D2_gradient_penalty = calc_gradient_penalty(opt, D2, get_discriminator2_scaling_tensor, discriminator2_real, fake, opt.lambda_grad, opt.device)
             D2_gradient_penalty.backward(retain_graph=False)
 
             # Logging:
@@ -204,7 +206,7 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
             if opt.alpha != 0:  # i. e. we are trying to find an exact recreation of our input in the lat space
                 Z_opt = opt.noise_amp * z_opt + z_prev
                 G_rec = G(Z_opt.detach(), z_prev, temperature=1 if current_scale != opt.token_insert else 1)
-                rec_loss = opt.alpha * F.mse_loss(G_rec, real)
+                rec_loss = opt.alpha * F.mse_loss(G_rec, generator_real)
                 rec_loss.backward(retain_graph=False)  # TODO: Check for unexpected argument retain_graph=True
                 rec_loss = rec_loss.detach()
             else:  # We are not trying to find an exact recreation
@@ -230,17 +232,37 @@ def train_single_scale(D1, D2, G, reals, generators, noise_maps, input_from_prev
             img2 = opt.ImgGen.render(one_hot_to_ascii_level(
                 G(Z_opt.detach(), z_prev, temperature=1 if current_scale != opt.token_insert else 1).detach(),
                 token_list))
-            real_scaled = one_hot_to_ascii_level(real.detach(), token_list)
-            img3 = opt.ImgGen.render(real_scaled)
+            
+            generator_real_scaled = one_hot_to_ascii_level(generator_real.detach(), token_list)
+            generator_img3 = opt.ImgGen.render(generator_real_scaled)
+
+            discriminator1_real_scaled = one_hot_to_ascii_level(discriminator1_real.detach(), token_list)
+            discriminator1_img3 = opt.ImgGen.render(discriminator1_real_scaled)
+
+            discriminator2_real_scaled = one_hot_to_ascii_level(discriminator2_real.detach(), token_list)
+            discriminator2_img3 = opt.ImgGen.render(discriminator2_real_scaled)
+
             wandb.log({f"G(z)@{current_scale}": wandb.Image(img),
                        f"G(z_opt)@{current_scale}": wandb.Image(img2),
-                       f"real@{current_scale}": wandb.Image(img3)},
+                       f"generator_real@{current_scale}": wandb.Image(generator_img3),
+                       f"discriminator1_real@{current_scale}": wandb.Image(discriminator1_img3),
+                       f"discriminator2_real@{current_scale}": wandb.Image(discriminator2_img3)},
                       sync=False, commit=False)
 
-            real_scaled_path = os.path.join(wandb.run.dir, f"real@{current_scale}.txt")
-            with open(real_scaled_path, "w") as f:
-                f.writelines(real_scaled)
-            wandb.save(real_scaled_path)
+            generator_real_scaled_path = os.path.join(wandb.run.dir, f"generator_real@{current_scale}.txt")
+            with open(generator_real_scaled_path, "w") as f:
+                f.writelines(generator_real_scaled)
+            wandb.save(generator_real_scaled_path)
+
+            discriminator1_real_scaled_path = os.path.join(wandb.run.dir, f"discriminator1_real@{current_scale}.txt")
+            with open(discriminator1_real_scaled_path, "w") as f:
+                f.writelines(discriminator1_real_scaled)
+            wandb.save(discriminator1_real_scaled_path)
+
+            discriminator2_real_scaled_path = os.path.join(wandb.run.dir, f"discriminator2_real@{current_scale}.txt")
+            with open(discriminator2_real_scaled_path, "w") as f:
+                f.writelines(discriminator2_real_scaled)
+            wandb.save(discriminator2_real_scaled_path)
 
         # Learning Rate scheduler step
         schedulerD1.step()
