@@ -45,6 +45,8 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
 
     padsize = int(1 * opt.num_layer)  # As kernel size is always 3 currently, padsize goes up by one per layer
 
+    upsample = nn.Upsample(size=(nzx,nzy), mode='nearest')
+
     if not opt.pad_with_noise:
         pad_noise = nn.ZeroPad2d(padsize)
         pad_image = nn.ZeroPad2d(padsize)
@@ -199,9 +201,11 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
             errD1_G = -output_D1_G
             errD2_G = -output_D2_G
 
-            combined_error = errD2_G.lerp(errD1_G, get_discriminator1_scaling_tensor(opt, errD1_G))
-
-            combined_error.backward(gradient=torch.ones_like(combined_error), retain_graph=False)
+            # Error needs to match fake shape (minus batch dim if any).
+            errD1_tensor = upsample(errD1_G).squeeze().expand(fake.shape)
+            errD2_tensor = upsample(errD2_G).squeeze().expand(fake.shape)
+            combined_error = errD1_tensor + errD2_tensor
+            combined_error.backward(gradient=torch.ones_like(combined_error))
 
             if opt.alpha != 0:  # i. e. we are trying to find an exact recreation of our input in the lat space
                 Z_opt = opt.noise_amp * z_opt + z_prev
