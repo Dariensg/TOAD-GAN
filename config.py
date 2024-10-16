@@ -23,8 +23,8 @@ def get_arguments():
     parser.add_argument("--out", help="output folder", default="./output")
 
     parser.add_argument("--input-dir", help="input image dir", default="input")
-    parser.add_argument("--discriminator1-input-name", help="discriminator1 input image name", default="lvl_1-1.txt")
-    parser.add_argument("--discriminator2-input-name", help="discriminator2 input image name", default="lvl_1-2.txt")
+    parser.add_argument("--discriminator1-input-name", help="discriminator1 input image name", default="lvl_1-2.txt")
+    parser.add_argument("--discriminator2-input-name", help="discriminator2 input image name", default="lvl_1-3.txt")
 
     # networks hyper parameters:
     parser.add_argument("--nfc", type=int, help="number of filters for conv layers", default=64)
