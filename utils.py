@@ -75,7 +75,7 @@ def get_discriminator1_scaling_tensor(opt, outputD1):
     d1_scaling = interpolate(scaling[None,None,...], size=(outputD1.shape[-2],outputD1.shape[-1]), mode='nearest')
     d1_scaling = d1_scaling[0,0]
     
-    return d1_scaling
+    return d1_scaling.to(opt.device)
 
 def get_discriminator2_scaling_tensor(opt, outputD2):
     if (opt.alpha_layer_type == "half-and-half"):
@@ -90,4 +90,4 @@ def get_discriminator2_scaling_tensor(opt, outputD2):
     d2_scaling = interpolate(scaling[None,None,...], size=(outputD2.shape[-2],outputD2.shape[-1]), mode='nearest')
     d2_scaling = d2_scaling[0,0]
     
-    return d2_scaling
+    return d2_scaling.to(opt.device)
