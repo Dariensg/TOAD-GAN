@@ -77,7 +77,7 @@ def main():
 
     d1_chance = get_discriminator1_scaling_tensor(opt, discriminator1_real) / (get_discriminator1_scaling_tensor(opt, discriminator1_real) + get_discriminator2_scaling_tensor(opt, discriminator2_real))
     gen_lerp = torch.bernoulli(d1_chance)
-    generator_real = discriminator1_real.lerp(discriminator2_real, gen_lerp)
+    generator_real = discriminator1_real.lerp(discriminator2_real, gen_lerp).to(opt.device)
 
     # Train!
     generators, noise_maps, generator_reals, noise_amplitudes = train(generator_real, discriminator1_real, discriminator2_real, opt)
