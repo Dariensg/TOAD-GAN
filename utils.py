@@ -64,20 +64,30 @@ def prepare_mnist_seed_images():
 
 def get_discriminator1_scaling_tensor(opt, outputD1):
     if (opt.alpha_layer_type == "half-and-half"):
-        zeros = torch.tensor([[[0.] * math.ceil(outputD1.size()[-1] / 2)] * outputD1.size()[-2]])
-        ones = torch.tensor([[[1.] * math.floor(outputD1.size()[-1] / 2)] * outputD1.size()[-2]])
-        return torch.cat((zeros, ones), 2).to(opt.device)
+        scaling = [[0.,1.]]
     elif (opt.alpha_layer_type == "all-ones"):
-        return torch.ones_like(outputD1).to(opt.device)
+        scaling = [[1.]]
     elif (opt.alpha_layer_type == "all-zeros"):
-        return torch.zeros_like(outputD1).to(opt.device)
+        scaling = [[0.]]
+
+    scaling = torch.tensor(scaling)
+
+    d1_scaling = interpolate(scaling[None,None,...], size=(outputD1.shape[-2],outputD1.shape[-1]), mode='nearest')
+    d1_scaling = d1_scaling[0,0]
+    
+    return d1_scaling
 
 def get_discriminator2_scaling_tensor(opt, outputD2):
     if (opt.alpha_layer_type == "half-and-half"):
-        zeros = torch.tensor([[[0.] * math.ceil(outputD2.size()[-1] / 2)] * outputD2.size()[-2]])
-        ones = torch.tensor([[[1.] * math.floor(outputD2.size()[-1] / 2)] * outputD2.size()[-2]])
-        return torch.cat((ones, zeros), 2).to(opt.device)
+        scaling = [[1.,0.]]
     elif (opt.alpha_layer_type == "all-ones"):
-        return torch.zeros_like(outputD2).to(opt.device)
+        scaling = [[0.]]
     elif (opt.alpha_layer_type == "all-zeros"):
-        return torch.ones_like(outputD2).to(opt.device)
+        scaling = [[1.]]
+
+    scaling = torch.tensor(scaling)
+
+    d2_scaling = interpolate(scaling[None,None,...], size=(outputD2.shape[-2],outputD2.shape[-1]), mode='nearest')
+    d2_scaling = d2_scaling[0,0]
+    
+    return d2_scaling
