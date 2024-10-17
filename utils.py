@@ -1,5 +1,6 @@
 import random
 
+import pickle
 import numpy as np
 import torch
 import torchvision
@@ -91,3 +92,11 @@ def get_discriminator2_scaling_tensor(opt, outputD2):
 
     return d2_scaling.to(opt.device)
 
+def save_pkl(obj, name, prepath='output/'):
+    with open(prepath + name + '.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+
+def load_pkl(name, prepath='output/'):
+    with open(prepath + name + '.pkl', 'rb') as f:
+        return pickle.load(f)
