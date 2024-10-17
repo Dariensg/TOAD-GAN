@@ -60,3 +60,34 @@ def prepare_mnist_seed_images():
         tmp = tmp[x_1:x_2, y_1:y_2]
         # tmp = interpolate(tmp.unsqueeze(0).unsqueeze(0), (28, 28))
         plt.imsave('mariokart/seed_road/MNIST_examples/eights/sample_%d.png' % i, tmp[0][0], cmap='Greys')
+
+def get_discriminator1_scaling_tensor(opt, outputD1):
+    if (opt.alpha_layer_type == "half-and-half"):
+        scaling = [[0.,1.]]
+    elif (opt.alpha_layer_type == "all-ones"):
+        scaling = [[1.]]
+    elif (opt.alpha_layer_type == "all-zeros"):
+        scaling = [[0.]]
+
+    scaling = torch.tensor(scaling)
+
+    d1_scaling = interpolate(scaling[None,None,...], size=(outputD1.shape[-2],outputD1.shape[-1]), mode='nearest')
+    d1_scaling = d1_scaling[0,0]
+
+    return d1_scaling.to(opt.device)
+
+def get_discriminator2_scaling_tensor(opt, outputD2):
+    if (opt.alpha_layer_type == "half-and-half"):
+        scaling = [[1.,0.]]
+    elif (opt.alpha_layer_type == "all-ones"):
+        scaling = [[0.]]
+    elif (opt.alpha_layer_type == "all-zeros"):
+        scaling = [[1.]]
+
+    scaling = torch.tensor(scaling)
+
+    d2_scaling = interpolate(scaling[None,None,...], size=(outputD2.shape[-2],outputD2.shape[-1]), mode='nearest')
+    d2_scaling = d2_scaling[0,0]
+
+    return d2_scaling.to(opt.device)
+

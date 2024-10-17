@@ -149,11 +149,11 @@ def generate_samples(generators, noise_maps, reals, noise_amplitudes, opt, in_s=
                                                                            1 - opt.seed_road.to(opt.device))
 
             # Save all scales
-            # if True:
+            if True:
             # Save scale 0 and last scale
             # if current_scale == 0 or current_scale == len(reals) - 1:
             # Save only last scale
-            if current_scale == len(reals) - 1:
+            #if current_scale == len(reals) - 1:
                 dir2save = opt.out_ + '/' + save_dir
 
                 # Make directories
@@ -178,6 +178,10 @@ def generate_samples(generators, noise_maps, reals, noise_amplitudes, opt, in_s=
                 # Save level txt
                 with open("%s/txt/%d_sc%d.txt" % (dir2save, n, current_scale), "w") as f:
                     f.writelines(level)
+
+                # CDB HAX
+                for row in level: print(row, end="")
+                print("\n")
 
                 # Save torch tensor
                 if save_tensors:

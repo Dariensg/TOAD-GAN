@@ -7,17 +7,20 @@ from mariokart.level_image_gen import LevelImageGen as MariokartLevelGen
 from mariokart.special_mariokart_downsampling import special_mariokart_downsampling
 from mario.level_image_gen import LevelImageGen as MarioLevelGen
 from mario.special_mario_downsampling import special_mario_downsampling
-from mario.level_utils import read_level, read_level_from_file
+from mario.level_utils import read_level, read_level_from_file, one_hot_to_ascii_level, get_all_tokens
 from config import get_arguments, post_config
 from loguru import logger
 import wandb
 import sys
 import torch
+import torch.nn.functional as F
+from utils import get_discriminator1_scaling_tensor, get_discriminator2_scaling_tensor
 
 
 def get_tags(opt):
     """ Get Tags for logging from input name. Helpful for wandb. """
-    return [opt.input_name.split(".")[0]]
+    #return [opt.input_name.split(".")[0]]
+    return [opt.d1_input_name.split(".")[0]]
 
 
 def main():
@@ -38,7 +41,7 @@ def main():
     opt = post_config(opt)
 
     # Init wandb
-    run = wandb.init(project="mario", tags=get_tags(opt),
+    run = wandb.init(mode="offline", project="mario", tags=get_tags(opt),
                      config=opt, dir=opt.out)
     opt.out_ = run.dir
 
@@ -56,27 +59,44 @@ def main():
     else:
         NameError("name of --game not recognized. Supported: mario, mariokart")
 
+    all_tokens = get_all_tokens(opt)
+
     # Read level according to input arguments
-    real = read_level(opt, None, replace_tokens).to(opt.device)
+    discriminator1_real = read_level(opt, opt.d1_input_name, all_tokens, replace_tokens).to(opt.device)
+    discriminator2_real = read_level(opt, opt.d2_input_name, all_tokens, replace_tokens).to(opt.device)
+
+    discriminator1_real_length = discriminator1_real.shape[-1]
+    discriminator2_real_length = discriminator2_real.shape[-1]
+
+    if discriminator1_real_length > discriminator2_real_length:
+        # If D1 is longer, pad D2 right
+        discriminator2_real = F.pad(discriminator2_real, (0, discriminator1_real_length - discriminator2_real_length, 0, 0), 'replicate')
+    elif discriminator2_real_length > discriminator1_real_length:
+        # If D2 is longer, pad D1 left
+        discriminator1_real = F.pad(discriminator1_real, (discriminator1_real_length - discriminator1_real_length, 0, 0, 0), 'replicate')
+
+    d1_chance = get_discriminator1_scaling_tensor(opt, discriminator1_real) / (get_discriminator1_scaling_tensor(opt, discriminator1_real) + get_discriminator2_scaling_tensor(opt, discriminator2_real))
+    gen_lerp = torch.bernoulli(d1_chance)
+    generator_real = discriminator1_real.lerp(discriminator2_real, gen_lerp).to(opt.device)
 
     # Train!
-    generators, noise_maps, reals, noise_amplitudes = train(real, opt)
+    generators, noise_maps, generator_reals, noise_amplitudes = train(generator_real, discriminator1_real, discriminator2_real, opt)
 
     # Generate Samples of same size as level
     logger.info("Finished training! Generating random samples...")
     in_s = None
-    generate_samples(generators, noise_maps, reals,
+    generate_samples(generators, noise_maps, generator_reals,
                      noise_amplitudes, opt, in_s=in_s)
 
     # Generate samples of smaller size than level
     logger.info("Generating arbitrary sized random samples...")
     scale_v = 0.8  # Arbitrarily chosen scales
     scale_h = 0.4
-    real_down = downsample(1, [[scale_v, scale_h]], real, opt.token_list)
+    real_down = downsample(1, [[scale_v, scale_h]], generator_real, opt.token_list)
     real_down = real_down[0]
     # necessary for correct input shape
     in_s = torch.zeros(real_down.shape, device=opt.device)
-    generate_samples(generators, noise_maps, reals, noise_amplitudes, opt, in_s=in_s,
+    generate_samples(generators, noise_maps, generator_reals, noise_amplitudes, opt, in_s=in_s,
                      scale_v=scale_v, scale_h=scale_h, save_dir="arbitrary_random_samples")
 
 
