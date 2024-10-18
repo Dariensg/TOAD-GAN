@@ -87,21 +87,8 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
         # (1) Update D network: maximize D(x) + D(G(z))
         ###########################
         for j in range(opt.Dsteps):
-            # train with real
-            D1.zero_grad()
-            D2.zero_grad()
 
-            output_D1 = D1(discriminator1_real).to(opt.device)
-            output_D2 = D2(discriminator2_real).to(opt.device)
-
-            # O.G.
-            errD1_real = -output_D1.mean()
-            errD1_real.backward()
-
-            errD2_real = -output_D2.mean()
-            errD2_real.backward()
-
-            # train with fake
+            # prepare prev
             if (j == 0) & (epoch == 0):
                 if current_scale == 0:  # If we are in the lowest scale, noise is generated from scratch
                     prev = torch.zeros(1, opt.nc_current, nzx, nzy).to(opt.device)
@@ -143,34 +130,51 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
                 prev = pad_image(prev)
 
             # After creating our correct noise input, we feed it to the generator:
-            noise = opt.noise_amp * noise_ + prev
-            fake = G(noise.detach(), prev, temperature=1 if current_scale != opt.token_insert else 1)
+            with torch.no_grad(): noise = opt.noise_amp * noise_ + prev
 
-            # Then run the result through the discriminator
-            output_D1_fake = D1(fake.detach())
-            with torch.no_grad():
-                errD1_fake = output_D1_fake.mean() * get_discriminator1_scaling_tensor(opt, output_D1_fake)[None,None,...]
+            # train with real
+            output_D1_real = D1(discriminator1_real).to(opt.device)
+            errD1_real = -output_D1_real.mean()
+            output_D2_real = D2(discriminator2_real).to(opt.device)
+            errD2_real = -output_D2_real.mean()
+
+            # train with fake
+            fake = G(noise, prev, temperature=1 if current_scale != opt.token_insert else 1)
+            output_D1_fake = D1(fake)
+            fake2 = G(noise, prev, temperature=1 if current_scale != opt.token_insert else 1)
+            output_D2_fake = D2(fake2)
+
+            errD1_fake = output_D1_fake.mean() * get_discriminator1_scaling_tensor(opt, output_D1_fake)[None,None,...]
+            errD2_fake = output_D2_fake.mean() * get_discriminator2_scaling_tensor(opt, output_D2_fake)[None,None,...]
+
+            # gradient penalty
+            d1_gradient_penalty = calc_gradient_penalty(D1, discriminator1_real, fake, opt.lambda_grad, opt.device)
+            d2_gradient_penalty = calc_gradient_penalty(D2, discriminator2_real, fake2, opt.lambda_grad, opt.device)
+
+            # Apply everything
+            D1.zero_grad()
+            D2.zero_grad()
+
+            errD1_real.backward()
+            errD2_real.backward()
+
             output_D1_fake.backward(gradient=errD1_fake)
-
-            output_D2_fake = D2(fake.detach())
-            with torch.no_grad():
-                errD2_fake = output_D2_fake.mean() * get_discriminator2_scaling_tensor(opt, output_D2_fake)[None,None,...]
             output_D2_fake.backward(gradient=errD2_fake)
 
-
-            # Gradient Penalty
-            d1_gradient_penalty = calc_gradient_penalty(D1, discriminator1_real, fake, opt.lambda_grad, opt.device)
             d1_gradient_penalty.backward()
-            d2_gradient_penalty = calc_gradient_penalty(D2, discriminator2_real, fake, opt.lambda_grad, opt.device)
             d2_gradient_penalty.backward()
 
             # Logging:
             if step % 10 == 0:
                 wandb.log({f"D1(G(z))@{current_scale}": errD1_fake.mean().item(),
-                           f"D1(x)@{current_scale}": -errD1_real.item(),
-                           f"D1_gradient_penalty@{current_scale}": d1_gradient_penalty.item()
+                           f"D1(x)@{current_scale}": -errD1_real.mean().item(),
+                           f"D1_gradient_penalty@{current_scale}": d1_gradient_penalty.item(),
+                           f"D2(G(z))@{current_scale}": errD2_fake.mean().item(),
+                           f"D2(x)@{current_scale}": -errD2_real.mean().item(),
+                           f"D2_gradient_penalty@{current_scale}": d2_gradient_penalty.item()
                            },
                           step=step, sync=False)
+
             optimizerD1.step()
             optimizerD2.step()
 
@@ -180,28 +184,40 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
 
         for j in range(opt.Gsteps):
             G.zero_grad()
-            fake = G(noise.detach(), prev.detach(), temperature=1 if current_scale != opt.token_insert else 1)
+            fake = G(noise, prev.detach(), temperature=1 if current_scale != opt.token_insert else 1)
             output_D1_G = D1(fake)
-            #output_D2_G = D2(fake)
+            output_D2_G = D2(fake)
 
-            with torch.no_grad():
-                errG_D1 = -output_D1_G.mean() * get_discriminator1_scaling_tensor(opt, output_D1_G)[None,None,...]
-                #errG_D2 = -output_D2_G.mean() * get_discriminator2_scaling_tensor(opt, output_D2_G)[None,None,...]
+            errG_D1 = -output_D1_G.mean() * get_discriminator1_scaling_tensor(opt, output_D1_G)[None,None,...]
+            errG_D2 = -output_D2_G.mean() * get_discriminator2_scaling_tensor(opt, output_D2_G)[None,None,...]
 
-                #print(get_discriminator1_scaling_tensor(opt, output_D1_G))
+            # In single seed tests without recon loss (2000 iter), 1 looked best, then 3, then 2.
+            # This may not mean anything.
+
+            # Option 1: Combine everything.
+            combined_output = output_D1_G + output_D2_G
+            combined_error = errG_D1 + errG_D2
+            combined_output.backward(gradient=combined_error)
+
+            # Option 2: call on output, pass loss as gradient.
             #output_D1_G.backward(gradient=errG_D1, retain_graph=True)
-            output_D1_G.backward(gradient=errG_D1)
             #output_D2_G.backward(gradient=errG_D2)
 
+            # Option 3: call on error, pass same shape as gradient.
+            #errG_D1.backward(gradient=torch.ones_like(errG_D1), retain_graph=True)
+            #errG_D2.backward(gradient=torch.ones_like(errG_D2))
+
+
             if opt.alpha != 0:  # i. e. we are trying to find an exact recreation of our input in the lat space
-                Z_opt = opt.noise_amp * z_opt + z_prev
-                G_rec = G(Z_opt.detach(), z_prev, temperature=1 if current_scale != opt.token_insert else 1)
+                with torch.no_grad(): Z_opt = opt.noise_amp * z_opt + z_prev
+
+                G_rec = G(Z_opt, z_prev, temperature=1 if current_scale != opt.token_insert else 1)
                 rec_loss = opt.alpha * F.mse_loss(G_rec, generator_real)
-                rec_loss.backward(retain_graph=False)  # TODO: Check for unexpected argument retain_graph=True
-                rec_loss = rec_loss.detach()
+                rec_loss.backward()
             else:  # We are not trying to find an exact recreation
-                rec_loss = torch.zeros([])
-                Z_opt = z_opt
+                with torch.no_grad():
+                    Z_opt = z_opt
+                    rec_loss = torch.zeros([])
 
             optimizerG.step()
 

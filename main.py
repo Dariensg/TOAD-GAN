@@ -77,7 +77,7 @@ def main():
 
     d1_chance = get_discriminator1_scaling_tensor(opt, discriminator1_real) / (get_discriminator1_scaling_tensor(opt, discriminator1_real) + get_discriminator2_scaling_tensor(opt, discriminator2_real))
     gen_lerp = torch.bernoulli(d1_chance)
-    generator_real = discriminator1_real.lerp(discriminator2_real, gen_lerp).to(opt.device)
+    generator_real = discriminator2_real.lerp(discriminator1_real, gen_lerp).to(opt.device)
 
     # Train!
     generators, noise_maps, generator_reals, noise_amplitudes = train(generator_real, discriminator1_real, discriminator2_real, opt)
@@ -98,6 +98,8 @@ def main():
     in_s = torch.zeros(real_down.shape, device=opt.device)
     generate_samples(generators, noise_maps, generator_reals, noise_amplitudes, opt, in_s=in_s,
                      scale_v=scale_v, scale_h=scale_h, save_dir="arbitrary_random_samples")
+
+    print("Seed used:", opt.manualSeed)
 
 
 if __name__ == "__main__":

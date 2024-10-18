@@ -63,7 +63,7 @@ def prepare_mnist_seed_images():
 
 def get_discriminator1_scaling_tensor(opt, outputD1):
     if (opt.alpha_layer_type == "half-and-half"):
-        scaling = [[0.,1.]]
+        scaling = [[1.,0.]]
     elif (opt.alpha_layer_type == "all-ones"):
         scaling = [[1.]]
     elif (opt.alpha_layer_type == "all-zeros"):
@@ -78,7 +78,7 @@ def get_discriminator1_scaling_tensor(opt, outputD1):
 
 def get_discriminator2_scaling_tensor(opt, outputD2):
     if (opt.alpha_layer_type == "half-and-half"):
-        scaling = [[1.,0.]]
+        scaling = [[0.,1.]]
     elif (opt.alpha_layer_type == "all-ones"):
         scaling = [[0.]]
     elif (opt.alpha_layer_type == "all-zeros"):

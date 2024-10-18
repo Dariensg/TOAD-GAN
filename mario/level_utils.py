@@ -114,6 +114,9 @@ def read_level_from_file(input_dir, input_name, tokens=None, replace_tokens=REPL
                 uniques.add(token)
     uniques = list(uniques)
     uniques.sort()  # necessary! otherwise we won't know the token order later
+    # CDB HAX
+    #size = len(txt_level[0]) - 1
+    #txt_level = ['-' * size + '\n'] * 16 + txt_level
     oh_level = ascii_to_one_hot_level(txt_level, uniques if tokens is None else tokens)
     return oh_level.unsqueeze(dim=0), uniques
 

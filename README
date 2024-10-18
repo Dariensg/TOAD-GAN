@@ -1,0 +1,5 @@
+I'll try to put a fresh brain on this tomorrow.  Final thought: how could 50/50 ever work when the generator is only convolutions?  There is no "output parameter for location x,y" at all.  There are only 64 layers of 3x3 convolution weights, all of which are run over the entire image.
+
+I'm afraid the answer may be that 50/50 couldn't work in that case?  As of course it is always learning from all "locations".  What's getting hooked up from the discriminator to the generator is "which channels/filters were used to make this area, change them to be better"
+
+Anyway, worth thinking about.

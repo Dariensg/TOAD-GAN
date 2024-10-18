@@ -22,7 +22,7 @@ def get_arguments():
     parser.add_argument("--manualSeed", type=int, help="manual seed")
     parser.add_argument("--out", help="output folder", default="output")
     parser.add_argument("--input-dir", help="input image dir", default="input")
-    parser.add_argument("--d1-input-name", help="input image name", default="lvl_1-3.txt")
+    parser.add_argument("--d1-input-name", help="input image name", default="lvl_1-2.txt")
     parser.add_argument("--d2-input-name", help="input image name", default="lvl_1-3.txt")
 
     # networks hyper parameters:
