@@ -3,9 +3,10 @@ from torch.nn.functional import interpolate
 from torch.nn import Softmax
 
 from .tokens import TOKEN_DOWNSAMPLING_HIERARCHY as HIERARCHY
+from mario.level_utils import encoded_to_ascii_level
 
 
-def special_mario_downsampling(num_scales, scales, image, token_list):
+def special_mario_downsampling(num_scales, scales, image, token_list, repr_type, use_hierarchy=False):
     """
     Special Downsampling Method designed for Super Mario Bros. Token based levels.
 
@@ -20,32 +21,42 @@ def special_mario_downsampling(num_scales, scales, image, token_list):
         scale_v = scales[sc][0]
         scale_h = scales[sc][1]
 
-        # Initial downscaling of one-hot level tensor is normal bilinear scaling
-        bil_scaled = interpolate(image, (int(image.shape[-2] * scale_v), int(image.shape[-1] * scale_h)),
-                                 mode='bilinear', align_corners=False)
+        if repr_type == 'block2vec':
+            # Initial downscaling of block2vec level tensor
+            bil_scaled = interpolate(image, (int(image.shape[-2] * scale_v), int(image.shape[-1] * scale_h)), 
+                                     mode='bilinear', align_corners=False)
+        else:
+            # Initial downscaling of one-hot level tensor is normal bilinear scaling
+            bil_scaled = interpolate(image, (int(image.shape[-2] * scale_v), int(image.shape[-1] * scale_h)),
+                                    mode='bilinear', align_corners=False)
 
         # Init output level
         img_scaled = torch.zeros_like(bil_scaled)
 
         for x in range(bil_scaled.shape[-2]):
             for y in range(bil_scaled.shape[-1]):
-                curr_h = 0
-                curr_tokens = [tok for tok in token_list if bil_scaled[:, token_list.index(tok), x, y] > 0]
-                for h in range(len(HIERARCHY)):  # find out which hierarchy group we're in
-                    for token in HIERARCHY[h].keys():
-                        if token in curr_tokens:
-                            curr_h = h
 
-                for t in range(bil_scaled.shape[-3]):
-                    if not (token_list[t] in HIERARCHY[curr_h].keys()):
-                        # if this token is not on the correct hierarchy group, set to 0
-                        img_scaled[:, t, x, y] = 0
-                    else:
-                        # if it is, keep original value
-                        img_scaled[:, t, x, y] = bil_scaled[:, t, x, y]
+                if use_hierarchy:
+                    curr_h = 0
+                    curr_tokens = [tok for tok in token_list if bil_scaled[:, token_list.index(tok), x, y] > 0]
+                    for h in range(len(HIERARCHY)):  # find out which hierarchy group we're in
+                        for token in HIERARCHY[h].keys():
+                            if token in curr_tokens:
+                                curr_h = h
 
-                # Adjust level to look more like the generator output through a Softmax function.
-                img_scaled[:, :, x, y] = Softmax(dim=1)(30*img_scaled[:, :, x, y])
+                if repr_type == 'block2vec':
+                    img_scaled = bil_scaled
+                else:
+                    for t in range(bil_scaled.shape[-3]):
+                        if use_hierarchy and not (token_list[t] in HIERARCHY[curr_h].keys()):
+                            # if this token is not on the correct hierarchy group, set to 0
+                            img_scaled[:, t, x, y] = 0
+                        else:
+                            # if it is, keep original value
+                            img_scaled[:, t, x, y] = bil_scaled[:, t, x, y]
+
+                    # Adjust level to look more like the generator output through a Softmax function.
+                    img_scaled[:, :, x, y] = Softmax(dim=1)(30*img_scaled[:, :, x, y])
 
         scaled_list.append(img_scaled)
 

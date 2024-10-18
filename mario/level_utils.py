@@ -1,5 +1,10 @@
 import torch
 from loguru import logger
+import torch.nn.functional as F
+import pytorch_lightning as pl
+
+from utils import load_pkl
+from mario.block2vec.block2vec import Block2Vec
 
 from .tokens import TOKEN_GROUPS, REPLACE_TOKENS
 
@@ -54,6 +59,23 @@ def ascii_to_one_hot_level(level, tokens):
                 oh_level[tokens.index(token), i, j] = 1
     return oh_level
 
+def ascii_to_block2vec_level(level, dim, repr):
+    oh_level = torch.zeros((dim, len(level), len(level[-1])))
+
+    for i in range(len(level)):
+        for j in range(len(level[-1])):
+            token = level[i][j]
+            if token in repr.keys() and token != "\n":
+                oh_level[:, i, j] = repr[token]
+
+    return oh_level
+
+def encoded_to_ascii_level(level, tokens, repr, repr_type):
+    if repr_type == 'block2vec':
+        return block2vec_to_ascii_level(level, repr)
+    else:
+        return one_hot_to_ascii_level(level, tokens)
+
 
 def one_hot_to_ascii_level(level, tokens):
     """ Converts a full token level tensor to an ascii level. """
@@ -65,6 +87,25 @@ def one_hot_to_ascii_level(level, tokens):
         if i < level.shape[2] - 1:
             line += "\n"
         ascii_level.append(line)
+    return ascii_level
+
+def block2vec_to_ascii_level(level, repr):
+    # Convert block2vec level into 2D array of block indices
+    block_embs = torch.stack(list(repr.values()))
+    world_vec = level.squeeze().permute(1,2,0).unsqueeze(3)
+    blocks_vec = block_embs.permute(1,0)[None,None,...]
+    dist = (world_vec - blocks_vec).pow(2).sum(dim=-2)
+    labels = dist.argmin(dim=-1)
+
+    ascii_level = []
+    for i in range(labels.shape[0]):
+        line = ""
+        for j in range(labels.shape[1]):
+            line += list(repr.keys())[labels[i, j]]
+        if i < level.shape[0] - 1:
+            line += "\n"
+        ascii_level.append(line)
+
     return ascii_level
 
 
@@ -93,28 +134,39 @@ def get_all_tokens(opt, replace_tokens=REPLACE_TOKENS):
     return tokens
 
 
-def read_level(opt, input_name, tokens=None, replace_tokens=REPLACE_TOKENS):
+def read_level(opt, input_name, repr=None, tokens=None, replace_tokens=REPLACE_TOKENS):
     """ Wrapper function for read_level_from_file using namespace opt. Updates parameters for opt."""
-    level, uniques = read_level_from_file(opt.input_dir, input_name, tokens, replace_tokens)
+    level, uniques = read_level_from_file(opt.input_dir, input_name, repr, opt.repr_type, tokens, replace_tokens)
     opt.token_list = uniques if tokens == None else tokens
     logger.info("Tokens in level {}", opt.token_list)
     opt.nc_current = len(uniques) if tokens == None else len(tokens)
     return level
 
 
-def read_level_from_file(input_dir, input_name, tokens=None, replace_tokens=REPLACE_TOKENS):
+def read_level_from_file(input_dir, input_name, repr, repr_type, tokens=None, replace_tokens=REPLACE_TOKENS):
     """ Returns a full token level tensor from a .txt file. Also returns the unique tokens found in this level.
     Token. """
     txt_level = load_level_from_text("%s/%s" % (input_dir, input_name), replace_tokens)
-    uniques = set()
-    for line in txt_level:
-        for token in line:
-            # if token != "\n" and token != "M" and token != "F":
-            if token != "\n" and token not in replace_tokens.items():
-                uniques.add(token)
-    uniques = list(uniques)
-    uniques.sort()  # necessary! otherwise we won't know the token order later
-    oh_level = ascii_to_one_hot_level(txt_level, uniques if tokens is None else tokens)
+
+    if repr_type == 'block2vec' and repr is not None:
+        uniques = [u for u in repr.keys()]
+        dim = len(repr[uniques[0]])
+
+        oh_level = ascii_to_block2vec_level(txt_level, dim, repr)
+    else:
+        uniques = set()
+        for line in txt_level:
+            for token in line:
+                # if token != "\n" and token != "M" and token != "F":
+                if token != "\n" and token not in replace_tokens.items():
+                    uniques.add(token)
+        uniques = list(uniques)
+        uniques.sort()  # necessary! otherwise we won't know the token order later
+
+
+        oh_level = ascii_to_one_hot_level(txt_level, uniques if tokens is None else tokens)
+
+
     return oh_level.unsqueeze(dim=0), uniques
 
 
@@ -139,3 +191,25 @@ def place_a_mario_token(level):
                 return level
 
     return level  # Will only be reached if there is no place to put Mario
+
+def train_block2vec(opt, all_tokens, replace_tokens=REPLACE_TOKENS):
+    d1_real = read_level(opt, opt.d1_input_name, tokens=all_tokens, replace_tokens=replace_tokens).to(opt.device)
+    d2_real = read_level(opt, opt.d2_input_name, tokens=all_tokens, replace_tokens=replace_tokens).to(opt.device)
+
+    training_real = torch.cat((d1_real, d2_real), dim=-1)
+
+    training_real = one_hot_to_ascii_level(training_real, all_tokens)
+
+
+    logger.info("Training block2vec...")
+    block2vec = Block2Vec(opt, level=training_real)
+    trainer = pl.Trainer(accelerator="cpu", devices="auto", max_epochs=opt.epochs, fast_dev_run=opt.debug)
+    trainer.fit(block2vec)
+
+    block2repr = load_pkl("representations",
+                        f"./output/block2vec/")
+    
+    opt.block2repr = block2repr
+    opt.nc_current = opt.emb_dimension
+
+    return block2repr

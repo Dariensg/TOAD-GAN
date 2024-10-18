@@ -12,7 +12,7 @@ import wandb
 
 from draw_concat import draw_concat
 from generate_noise import generate_spatial_noise
-from mario.level_utils import group_to_token, one_hot_to_ascii_level, token_to_group
+from mario.level_utils import group_to_token, encoded_to_ascii_level
 from mario.tokens import TOKEN_GROUPS as MARIO_TOKEN_GROUPS
 from mariokart.tokens import TOKEN_GROUPS as MARIOKART_TOKEN_GROUPS
 from models import calc_gradient_penalty, save_networks
@@ -36,13 +36,13 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
     discriminator2_real = discriminator2_reals[current_scale]
 
     print("Real")
-    for row in one_hot_to_ascii_level(generator_real, opt.token_list): print (row, end="")
+    for row in encoded_to_ascii_level(generator_real, opt.token_list, opt.block2repr, opt.repr_type): print (row, end="")
     print ()
     print("D1 real")
-    for row in one_hot_to_ascii_level(discriminator1_real, opt.token_list): print (row, end="")
+    for row in encoded_to_ascii_level(discriminator1_real, opt.token_list, opt.block2repr, opt.repr_type): print (row, end="")
     print ()
     print("D2 real")
-    for row in one_hot_to_ascii_level(discriminator2_real, opt.token_list): print (row, end="")
+    for row in encoded_to_ascii_level(discriminator2_real, opt.token_list, opt.block2repr, opt.repr_type): print (row, end="")
     print ()
 
     if opt.game == 'mario':
@@ -218,11 +218,11 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
             else:
                 token_list = opt.token_list
 
-            img = opt.ImgGen.render(one_hot_to_ascii_level(fake.detach(), token_list))
-            img2 = opt.ImgGen.render(one_hot_to_ascii_level(
+            img = opt.ImgGen.render(encoded_to_ascii_level(fake.detach(), token_list, opt.block2repr, opt.repr_type))
+            img2 = opt.ImgGen.render(encoded_to_ascii_level(
                 G(Z_opt.detach(), z_prev, temperature=1 if current_scale != opt.token_insert else 1).detach(),
-                token_list))
-            real_scaled = one_hot_to_ascii_level(generator_real.detach(), token_list)
+                token_list, opt.block2repr, opt.repr_type))
+            real_scaled = encoded_to_ascii_level(generator_real.detach(), token_list, opt.block2repr, opt.repr_type)
             img3 = opt.ImgGen.render(real_scaled)
             wandb.log({f"G(z)@{current_scale}": wandb.Image(img),
                        f"G(z_opt)@{current_scale}": wandb.Image(img2),

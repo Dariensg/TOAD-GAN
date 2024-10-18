@@ -1,5 +1,6 @@
 # Code based on https://github.com/tamarott/SinGAN
 import argparse
+import os
 import random
 import numpy as np
 import torch
@@ -24,6 +25,9 @@ def get_arguments():
     parser.add_argument("--input-dir", help="input image dir", default="input")
     parser.add_argument("--d1-input-name", help="input image name", default="lvl_1-3.txt")
     parser.add_argument("--d2-input-name", help="input image name", default="lvl_1-3.txt")
+
+    # representation type
+    parser.add_argument("--repr-type", type=str, help="representation type to use in training (one-hot, block2vec)", default="one-hot")
 
     # networks hyper parameters:
     parser.add_argument("--nfc", type=int, help="number of filters for conv layers", default=64)
@@ -56,6 +60,22 @@ def get_arguments():
     # Alpha Layer Type for Multi-Discriminator
     parser.add_argument("--alpha_layer_type", type=str, help="alpha layer blending for multi-discriminators "
                                                          "'half-and-half', 'all-zeros', or 'all-ones')", default="all-ones")
+
+    # block2vec parameters
+    parser.add_argument("--output-dir", type=str, help="output path for embedding", default=os.path.join(
+        os.path.dirname(__file__),
+            "output",
+            "block2vec",
+        ))
+    parser.add_argument("--emb-dimension", type=int, help="number of dimensions in embedding", default=3)
+    parser.add_argument("--epochs", type=int, help="number of epochs to train embedding", default=30)
+    parser.add_argument("--batch-size", type=int, help="training batch size of embedding", default=256)
+    parser.add_argument("--initial-lr", type=int, help="initial learning rate of embedding", default=1e-3)
+    parser.add_argument("--neighbor-radius", type=int, help="radius of neighbors to use for training of embedding", default=1)
+    parser.add_argument("--debug", type=bool, help="enable debugging mode", default=False)
+
+    # enable hierarchy of tokens
+    parser.add_argument("--use-hierarchy", type=bool, default=False)
 
     return parser
 

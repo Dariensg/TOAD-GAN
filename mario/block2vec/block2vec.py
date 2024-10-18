@@ -25,14 +25,15 @@ from sklearn.metrics import ConfusionMatrixDisplay
 from torch.utils.data import DataLoader
 
 class Block2Vec(pl.LightningModule):
-    def __init__(self, opt):
+    def __init__(self, opt, level=None):
         super().__init__()
         self.args = opt
         self.save_hyperparameters()
         self.dataset = Block2VecDataset(
             self.args.input_dir,
-            self.args.input_name,
+            self.args.input_name if level is None else "",
             neighbor_radius=self.args.neighbor_radius,
+            level=level
         )
         self.emb_size = len(self.dataset.block2idx)
         self.model = SkipGramModel(self.emb_size, self.args.emb_dimension)

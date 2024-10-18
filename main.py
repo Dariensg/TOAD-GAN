@@ -7,7 +7,7 @@ from mariokart.level_image_gen import LevelImageGen as MariokartLevelGen
 from mariokart.special_mariokart_downsampling import special_mariokart_downsampling
 from mario.level_image_gen import LevelImageGen as MarioLevelGen
 from mario.special_mario_downsampling import special_mario_downsampling
-from mario.level_utils import read_level, read_level_from_file, one_hot_to_ascii_level, get_all_tokens
+from mario.level_utils import read_level, get_all_tokens, train_block2vec
 from config import get_arguments, post_config
 from loguru import logger
 import wandb
@@ -61,9 +61,13 @@ def main():
 
     all_tokens = get_all_tokens(opt)
 
+    repr = None
+    if opt.repr_type == 'block2vec':
+        repr = train_block2vec(opt, all_tokens)
+
     # Read level according to input arguments
-    discriminator1_real = read_level(opt, opt.d1_input_name, all_tokens, replace_tokens).to(opt.device)
-    discriminator2_real = read_level(opt, opt.d2_input_name, all_tokens, replace_tokens).to(opt.device)
+    discriminator1_real = read_level(opt, opt.d1_input_name, repr, all_tokens, replace_tokens).to(opt.device)
+    discriminator2_real = read_level(opt, opt.d2_input_name, repr, all_tokens, replace_tokens).to(opt.device)
 
     discriminator1_real_length = discriminator1_real.shape[-1]
     discriminator2_real_length = discriminator2_real.shape[-1]
@@ -92,7 +96,7 @@ def main():
     logger.info("Generating arbitrary sized random samples...")
     scale_v = 0.8  # Arbitrarily chosen scales
     scale_h = 0.4
-    real_down = downsample(1, [[scale_v, scale_h]], generator_real, opt.token_list)
+    real_down = downsample(1, [[scale_v, scale_h]], generator_real, opt.token_list, opt.repr_type, opt.use_hierarchy)
     real_down = real_down[0]
     # necessary for correct input shape
     in_s = torch.zeros(real_down.shape, device=opt.device)

@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 # sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), ".."))  # uncomment if opening form other dir
 
 from config import get_arguments, post_config
-from mario.level_utils import one_hot_to_ascii_level, group_to_token, token_to_group, read_level
+from mario.level_utils import encoded_to_ascii_level, group_to_token, token_to_group, read_level
 from mario.level_image_gen import LevelImageGen as MarioLevelGen
 from mariokart.special_mariokart_downsampling import special_mariokart_downsampling
 from mariokart.level_image_gen import LevelImageGen as MariokartLevelGen
@@ -86,7 +86,12 @@ def generate_samples(generators, noise_maps, reals, noise_amplitudes, opt, in_s=
                 old_in_s = in_s
                 in_s = token_to_group(in_s, opt.token_list, token_groups)
         else:
-            channels = len(opt.token_list)
+
+            if opt.repr_type == 'block2vec':
+                channels = opt.emb_dimension
+            else:
+                channels = len(opt.token_list)
+
             if in_s is not None and in_s.shape[1] != channels:
                 old_in_s = in_s
                 in_s = group_to_token(in_s, opt.token_list, token_groups)
@@ -168,7 +173,7 @@ def generate_samples(generators, noise_maps, reals, noise_amplitudes, opt, in_s=
                     pass
 
                 # Convert to ascii level
-                level = one_hot_to_ascii_level(I_curr.detach(), token_list)
+                level = encoded_to_ascii_level(I_curr.detach(), token_list, opt.block2repr, opt.repr_type)
 
                 # Render and save level image
                 if render_images:
@@ -193,7 +198,7 @@ def generate_samples(generators, noise_maps, reals, noise_amplitudes, opt, in_s=
                         token_list = [list(group.keys())[0] for group in token_groups]
                     else:
                         token_list = opt.token_list
-                    level = one_hot_to_ascii_level(old_in_s.detach(), token_list)
+                    level = encoded_to_ascii_level(old_in_s.detach(), token_list, opt.block2repr, opt.repr_type)
                     img = opt.ImgGen.render(level)
                     img.save("%s/img/%d_sc%d.png" % (dir2save, n, current_scale - 1))
 
@@ -405,7 +410,7 @@ if __name__ == '__main__':
 
             # Downsample "other level"
             real_fakes_down = special_mario_downsampling(1, [[opt.scales[-1], opt.scales[-1]]],
-                                                         real_fakes, opt_fakes.token_list)
+                                                         real_fakes, opt_fakes.token_list, opt.repr_type, opt.use_hierarchy)
 
             run_dir = "/home/awiszus/Project/TOAD-GAN/wandb/"
             if seed_level == 0:  # Only done for mario levels 1 to 3 so far

@@ -5,7 +5,7 @@ import torch
 import wandb
 from tqdm import tqdm
 
-from mario.level_utils import one_hot_to_ascii_level, token_to_group
+from mario.level_utils import encoded_to_ascii_level, token_to_group
 from mario.tokens import TOKEN_GROUPS as MARIO_TOKEN_GROUPS
 from mariokart.tokens import TOKEN_GROUPS as MARIOKART_TOKEN_GROUPS
 from mario.special_mario_downsampling import special_mario_downsampling
@@ -30,11 +30,11 @@ def train(generator_real, discriminator1_real, discriminator2_real, opt):
     opt.num_scales = len(scales)
 
     if opt.game == 'mario':
-        generator_scaled_list = special_mario_downsampling(opt.num_scales, scales, generator_real, opt.token_list)
-        discriminator1_scaled_list = special_mario_downsampling(opt.num_scales, scales, discriminator1_real, opt.token_list)
-        discriminator2_scaled_list = special_mario_downsampling(opt.num_scales, scales, discriminator2_real, opt.token_list)
+        generator_scaled_list = special_mario_downsampling(opt.num_scales, scales, generator_real, opt.token_list, opt.repr_type, opt.use_hierarchy)
+        discriminator1_scaled_list = special_mario_downsampling(opt.num_scales, scales, discriminator1_real, opt.token_list, opt.repr_type, opt.use_hierarchy)
+        discriminator2_scaled_list = special_mario_downsampling(opt.num_scales, scales, discriminator2_real, opt.token_list, opt.repr_type, opt.use_hierarchy)
     else:  # if opt.game == 'mariokart':
-        scaled_list = special_mariokart_downsampling(opt.num_scales, scales, real, opt.token_list)
+        scaled_list = special_mariokart_downsampling(opt.num_scales, scales, generator_real, opt.token_list)
 
     generator_reals = [*generator_scaled_list, generator_real]
     discriminator1_reals = [*discriminator1_scaled_list, discriminator1_real]
@@ -52,7 +52,7 @@ def train(generator_real, discriminator1_real, discriminator2_real, opt):
     opt.stop_scale = stop_scale
 
     # Log the original input level as an image
-    img = opt.ImgGen.render(one_hot_to_ascii_level(generator_real, opt.token_list))
+    img = opt.ImgGen.render(encoded_to_ascii_level(generator_real, opt.token_list, opt.block2repr, opt.repr_type))
     wandb.log({"real": wandb.Image(img)}, commit=False)
     os.makedirs("%s/state_dicts" % (opt.out_), exist_ok=True)
 
@@ -67,6 +67,10 @@ def train(generator_real, discriminator1_real, discriminator2_real, opt):
         # If we are seeding, we need to adjust the number of channels
         if current_scale < (opt.token_insert + 1):  # (stop_scale - 1):
             opt.nc_current = len(token_group)
+
+        # If using block2vec, our channels must be the dimension of the embedding
+        if opt.repr_type == 'block2vec':
+            opt.nc_current = generator_real.shape[1]
 
         # Initialize models
         D1, D2, G = init_models(opt)

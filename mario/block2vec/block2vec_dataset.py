@@ -11,14 +11,14 @@ from typing import Tuple
 from loguru import logger
 import numpy as np
 from tqdm import tqdm
-from mario.level_utils import load_level_from_text
+from mario.tokens import REPLACE_TOKENS
 
 from torch.utils.data.dataset import Dataset
 
 
 class Block2VecDataset(Dataset):
 
-    def __init__(self, input_dir: str, input_name: str, neighbor_radius: int = 1):
+    def __init__(self, input_dir: str, input_name: str, neighbor_radius: int = 1, level=None):
         """Block dataset with configurable neighborhood radius.
 
         Args:
@@ -27,7 +27,11 @@ class Block2VecDataset(Dataset):
         """
         super().__init__()
         self.input_name = input_name
-        self.level = load_level_from_text(os.path.join(input_dir, self.input_name))
+
+        if level is None:
+            self.level = load_level_from_text(os.path.join(input_dir, self.input_name))
+        else:
+            self.level = level
 
         padding = 2 * neighbor_radius  # one token on each side
 
@@ -92,3 +96,13 @@ class Block2VecDataset(Dataset):
 
     def __len__(self):
         return self.x_dim * self.y_dim
+    
+def load_level_from_text(path_to_level_txt, replace_tokens=REPLACE_TOKENS):
+    """ Loads an ascii level from a text file. """
+    with open(path_to_level_txt, "r") as f:
+        ascii_level = []
+        for line in f:
+            for token, replacement in replace_tokens.items():
+                line = line.replace(token, replacement)
+            ascii_level.append(line)
+    return ascii_level
