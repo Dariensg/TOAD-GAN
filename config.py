@@ -104,4 +104,6 @@ def post_config(opt):
     opt.ImgGen = []  # needs to be set to the correct image gen for each game
     opt.stop_scale = opt.num_scales  # which scale to stop on - usually always last scale defined
 
+    opt.block2repr = None
+
     return opt
