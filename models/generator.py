@@ -10,6 +10,8 @@ class Level_GeneratorConcatSkip2CleanAdd(nn.Module):
     """ Patch based Generator. Uses namespace opt. """
     def __init__(self, opt):
         super().__init__()
+        if opt.repr_type == 'one-hot': self.use_softmax = True
+        else: self.use_softmax = False
         self.is_cuda = torch.cuda.is_available()
         N = int(opt.nfc)
         self.head = ConvBlock(opt.nc_current, N, (opt.ker_size, opt.ker_size), 0, 1)  # Padding is done externally
@@ -29,7 +31,7 @@ class Level_GeneratorConcatSkip2CleanAdd(nn.Module):
         x = self.head(x)
         x = self.body(x)
         x = self.tail(x)
-        #x = F.softmax(x * temperature, dim=1)  # Softmax is added here to allow for the temperature parameter
+        if self.use_softmax: x = F.softmax(x * temperature, dim=1)
         ind = int((y.shape[2] - x.shape[2]) / 2)
         y = y[:, :, ind:(y.shape[2] - ind), ind:(y.shape[3] - ind)]
         return x + y
