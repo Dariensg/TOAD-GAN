@@ -29,7 +29,7 @@ class Level_GeneratorConcatSkip2CleanAdd(nn.Module):
         x = self.head(x)
         x = self.body(x)
         x = self.tail(x)
-        x = F.softmax(x * temperature, dim=1)  # Softmax is added here to allow for the temperature parameter
+        #x = F.softmax(x * temperature, dim=1)  # Softmax is added here to allow for the temperature parameter
         ind = int((y.shape[2] - x.shape[2]) / 2)
         y = y[:, :, ind:(y.shape[2] - ind), ind:(y.shape[3] - ind)]
         return x + y

@@ -181,16 +181,16 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
         for j in range(opt.Gsteps):
             G.zero_grad()
             fake = G(noise.detach(), prev.detach(), temperature=1 if current_scale != opt.token_insert else 1)
-            output_D1_G = D1(fake)
+            #output_D1_G = D1(fake)
             #output_D2_G = D2(fake)
 
-            with torch.no_grad():
-                errG_D1 = -output_D1_G.mean() * get_discriminator1_scaling_tensor(opt, output_D1_G)[None,None,...]
+            #with torch.no_grad():
+                #errG_D1 = -output_D1_G.mean() * get_discriminator1_scaling_tensor(opt, output_D1_G)[None,None,...]
                 #errG_D2 = -output_D2_G.mean() * get_discriminator2_scaling_tensor(opt, output_D2_G)[None,None,...]
 
                 #print(get_discriminator1_scaling_tensor(opt, output_D1_G))
             #output_D1_G.backward(gradient=errG_D1, retain_graph=True)
-            output_D1_G.backward(gradient=errG_D1)
+            #output_D1_G.backward(gradient=errG_D1)
             #output_D2_G.backward(gradient=errG_D2)
 
             if opt.alpha != 0:  # i. e. we are trying to find an exact recreation of our input in the lat space
