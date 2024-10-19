@@ -61,13 +61,13 @@ def main():
 
     all_tokens = get_all_tokens(opt)
 
-    repr = None
+    block2repr = None
     if opt.repr_type == 'block2vec':
-        repr = train_block2vec(opt, all_tokens)
+        block2repr = train_block2vec(opt, all_tokens)
 
     # Read level according to input arguments
-    discriminator1_real = read_level(opt, opt.d1_input_name, repr, all_tokens, replace_tokens).to(opt.device)
-    discriminator2_real = read_level(opt, opt.d2_input_name, repr, all_tokens, replace_tokens).to(opt.device)
+    discriminator1_real = read_level(opt, opt.d1_input_name, block2repr, all_tokens, replace_tokens).to(opt.device)
+    discriminator2_real = read_level(opt, opt.d2_input_name, block2repr, all_tokens, replace_tokens).to(opt.device)
 
     discriminator1_real_length = discriminator1_real.shape[-1]
     discriminator2_real_length = discriminator2_real.shape[-1]
