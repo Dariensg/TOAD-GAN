@@ -96,7 +96,7 @@ def main():
     logger.info("Generating arbitrary sized random samples...")
     scale_v = 0.8  # Arbitrarily chosen scales
     scale_h = 0.4
-    real_down = downsample(1, [[scale_v, scale_h]], generator_real, opt.token_list, opt.repr_type, opt.use_hierarchy)
+    real_down = downsample(1, [[scale_v, scale_h]], generator_real, opt.token_list, opt.repr_type, opt.block2repr, opt.use_hierarchy)
     real_down = real_down[0]
     # necessary for correct input shape
     in_s = torch.zeros(real_down.shape, device=opt.device)

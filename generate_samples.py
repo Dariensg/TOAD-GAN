@@ -410,7 +410,7 @@ if __name__ == '__main__':
 
             # Downsample "other level"
             real_fakes_down = special_mario_downsampling(1, [[opt.scales[-1], opt.scales[-1]]],
-                                                         real_fakes, opt_fakes.token_list, opt.repr_type, opt.use_hierarchy)
+                                                         real_fakes, opt_fakes.token_list, opt.repr_type, opt.block2repr, opt.use_hierarchy)
 
             run_dir = "/home/awiszus/Project/TOAD-GAN/wandb/"
             if seed_level == 0:  # Only done for mario levels 1 to 3 so far
@@ -439,7 +439,7 @@ if __name__ == '__main__':
 
         else:
             # Get input shape for in_s
-            real_down = downsample(1, [[opt.scale_v, opt.scale_h]], real, opt.token_list)
+            real_down = downsample(1, [[opt.scale_v, opt.scale_h]], real, opt.token_list, opt.repr_type, opt.block2repr, opt.use_hierarchy)
             real_down = real_down[0]
             in_s = torch.zeros_like(real_down, device=opt.device)
             prefix = "arbitrary"

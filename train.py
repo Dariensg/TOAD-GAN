@@ -30,9 +30,9 @@ def train(generator_real, discriminator1_real, discriminator2_real, opt):
     opt.num_scales = len(scales)
 
     if opt.game == 'mario':
-        generator_scaled_list = special_mario_downsampling(opt.num_scales, scales, generator_real, opt.token_list, opt.repr_type, opt.use_hierarchy)
-        discriminator1_scaled_list = special_mario_downsampling(opt.num_scales, scales, discriminator1_real, opt.token_list, opt.repr_type, opt.use_hierarchy)
-        discriminator2_scaled_list = special_mario_downsampling(opt.num_scales, scales, discriminator2_real, opt.token_list, opt.repr_type, opt.use_hierarchy)
+        generator_scaled_list = special_mario_downsampling(opt.num_scales, scales, generator_real, opt.token_list, opt.repr_type, opt.block2repr, opt.use_hierarchy)
+        discriminator1_scaled_list = special_mario_downsampling(opt.num_scales, scales, discriminator1_real, opt.token_list, opt.repr_type, opt.block2repr, opt.use_hierarchy)
+        discriminator2_scaled_list = special_mario_downsampling(opt.num_scales, scales, discriminator2_real, opt.token_list, opt.repr_type, opt.block2repr, opt.use_hierarchy)
     else:  # if opt.game == 'mariokart':
         scaled_list = special_mariokart_downsampling(opt.num_scales, scales, generator_real, opt.token_list)
 

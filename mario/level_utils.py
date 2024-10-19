@@ -70,9 +70,9 @@ def ascii_to_block2vec_level(level, dim, repr):
 
     return oh_level
 
-def encoded_to_ascii_level(level, tokens, repr, repr_type):
+def encoded_to_ascii_level(level, tokens, block2repr, repr_type):
     if repr_type == 'block2vec':
-        return block2vec_to_ascii_level(level, repr)
+        return block2vec_to_ascii_level(level, block2repr)
     else:
         return one_hot_to_ascii_level(level, tokens)
 
@@ -89,9 +89,9 @@ def one_hot_to_ascii_level(level, tokens):
         ascii_level.append(line)
     return ascii_level
 
-def block2vec_to_ascii_level(level, repr):
+def block2vec_to_ascii_level(level, block2repr):
     # Convert block2vec level into 2D array of block indices
-    block_embs = torch.stack(list(repr.values()))
+    block_embs = torch.stack(list(block2repr.values()))
     world_vec = level.squeeze().permute(1,2,0).unsqueeze(3)
     blocks_vec = block_embs.permute(1,0)[None,None,...]
     dist = (world_vec - blocks_vec).pow(2).sum(dim=-2)
@@ -101,8 +101,8 @@ def block2vec_to_ascii_level(level, repr):
     for i in range(labels.shape[0]):
         line = ""
         for j in range(labels.shape[1]):
-            line += list(repr.keys())[labels[i, j]]
-        if i < level.shape[0] - 1:
+            line += list(block2repr.keys())[labels[i, j]]
+        if i < labels.shape[0] - 1:
             line += "\n"
         ascii_level.append(line)
 
