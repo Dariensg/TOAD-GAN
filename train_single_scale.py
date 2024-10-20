@@ -176,7 +176,10 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
             if step % 10 == 0:
                 wandb.log({f"D1(G(z))@{current_scale}": errD1_fake.mean().item(),
                            f"D1(x)@{current_scale}": -errD1_real.item(),
-                           f"D1_gradient_penalty@{current_scale}": d1_gradient_penalty.item()
+                           f"D1_gradient_penalty@{current_scale}": d1_gradient_penalty.item(),
+                           f"D2(G(x))@{current_scale}": errD2_fake.mean().item(),
+                           f"D2(x)@{current_scale}": -errD2_real.item(),
+                           f"D2_gradient_penalty@{current_scale}": d2_gradient_penalty.item()
                            },
                           step=step, sync=False)
             optimizerD1.step()
@@ -306,10 +309,11 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
 
         # Learning Rate scheduler step
         schedulerD1.step()
+        schedulerD2.step()
         schedulerG.step()
 
     # Save networks
     torch.save(z_opt, "%s/z_opt.pth" % opt.outf)
-    save_networks(G, D1, z_opt, opt)
+    save_networks(G, D1, D2, z_opt, opt)
     wandb.save(opt.outf)
     return z_opt, input_from_prev_scale, G

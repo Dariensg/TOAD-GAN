@@ -67,9 +67,10 @@ def calc_gradient_penalty(netD, real_data, fake_data, LAMBDA, device):
     return gradient_penalty
 
 
-def save_networks(G, D, z_opt, opt):
+def save_networks(G, D1, D2, z_opt, opt):
     torch.save(G.state_dict(), "%s/G.pth" % (opt.outf))
-    torch.save(D.state_dict(), "%s/D.pth" % (opt.outf))
+    torch.save(D1.state_dict(), "%s/D1.pth" % (opt.outf))
+    torch.save(D2.state_dict(), "%s/D2.pth" % (opt.outf))
     torch.save(z_opt, "%s/z_opt.pth" % (opt.outf))
 
 
