@@ -72,6 +72,12 @@ def train(generator_real, discriminator1_real, discriminator2_real, opt):
         if opt.repr_type == 'block2vec':
             opt.nc_current = generator_real.shape[1]
 
+
+        # PROBLEM: there is only one G, not one per scale!
+        # Will only work at smallest scale.
+        opt.nzy_current = generator_reals[0].shape[2]
+        opt.nzx_current = generator_reals[0].shape[3]
+
         # Initialize models
         D1, D2, G = init_models(opt)
         # If we are seeding, the weights after the seed need to be adjusted
