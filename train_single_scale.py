@@ -79,6 +79,7 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
 
     logger.info("Training at scale {}", current_scale)
     for epoch in tqdm(range(opt.niter)):
+        print_epoch = True if epoch % 200 == 0 or epoch == (opt.niter - 1) else False
         step = current_scale * opt.niter + epoch
         noise_ = generate_spatial_noise([1, opt.nc_current, nzx, nzy], device=opt.device)
         noise_ = pad_noise(noise_)
@@ -100,6 +101,10 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
 
             errD2_real = -output_D2.mean()
             errD2_real.backward()
+
+            if print_epoch:
+                print("D1 real", errD1_real.item())
+                print("D2 real", errD2_real.item())
 
             # train with fake
             if (j == 0) & (epoch == 0):
@@ -157,6 +162,9 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
                 errD2_fake = output_D2_fake.mean() * get_discriminator2_scaling_tensor(opt, output_D2_fake)[None,None,...]
             output_D2_fake.backward(gradient=errD2_fake)
 
+            if print_epoch:
+                print("D1 fake", errD1_fake.mean())
+                print("D2 fake", errD2_fake.mean())
 
             # Gradient Penalty
             d1_gradient_penalty = calc_gradient_penalty(D1, discriminator1_real, fake, opt.lambda_grad, opt.device)
@@ -178,9 +186,9 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
         # (2) Update G network: maximize D(G(z))
         ###########################
 
-        for j in range(opt.Gsteps):
-            G.zero_grad()
-            fake = G(noise.detach(), prev.detach(), temperature=1 if current_scale != opt.token_insert else 1)
+        #for j in range(opt.Gsteps):
+            #G.zero_grad()
+            #fake = G(noise.detach(), prev.detach(), temperature=1 if current_scale != opt.token_insert else 1)
             #output_D1_G = D1(fake)
             #output_D2_G = D2(fake)
 
@@ -193,15 +201,66 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
             #output_D1_G.backward(gradient=errG_D1)
             #output_D2_G.backward(gradient=errG_D2)
 
-            if opt.alpha != 0:  # i. e. we are trying to find an exact recreation of our input in the lat space
+        for j in range(opt.Gsteps):
+            G.zero_grad()
+            fake = G(noise, prev.detach(), temperature=1 if current_scale != opt.token_insert else 1)
+            output_D1_G = D1(fake)
+            output_D2_G = D2(fake)
+
+            errG_D1 = -output_D1_G.mean() * get_discriminator1_scaling_tensor(opt, output_D1_G)[None,None,...]
+            errG_D2 = -output_D2_G.mean() * get_discriminator2_scaling_tensor(opt, output_D2_G)[None,None,...]
+
+            if print_epoch:
+                print("D1-> G signal", errG_D1.mean())
+                print("D2-> G signal", errG_D2.mean())
+
+            # In single seed tests without recon loss (2000 iter), 1 looked best, then 3, then 2.
+            # This may not mean anything.
+
+            # Option 1: Combine everything.
+            combined_output = output_D1_G + output_D2_G
+            combined_error = errG_D1 + errG_D2
+            combined_output.backward(gradient=combined_error)
+
+            # Option 2: call on output, pass loss as gradient.
+            #output_D1_G.backward(gradient=errG_D1, retain_graph=True)
+            #output_D2_G.backward(gradient=errG_D2)
+
+            # Option 3: call on error, pass same shape as gradient.
+            #errG_D1.backward(gradient=torch.ones_like(errG_D1), retain_graph=True)
+            #errG_D2.backward(gradient=torch.ones_like(errG_D2))
+
+
+            #if opt.alpha != 0:  # i. e. we are trying to find an exact recreation of our input in the lat space
+                #Z_opt = opt.noise_amp * z_opt + z_prev
+                #G_rec = G(Z_opt.detach(), z_prev, temperature=1 if current_scale != opt.token_insert else 1)
+                #rec_loss = opt.alpha * F.mse_loss(G_rec, generator_real)
+                #rec_loss.backward(retain_graph=False)  # TODO: Check for unexpected argument retain_graph=True
+                #rec_loss = rec_loss.detach()
+
+                #with torch.no_grad():
+                    #Z_noise = opt.noise_amp * noise + z_prev
+                    #G_noise = G(Z_noise, z_prev, temperature=1 if current_scale != opt.token_insert else 1)
+            #else:  # We are not trying to find an exact recreation
+                #rec_loss = torch.zeros([])
+                #Z_opt = z_opt
+
+            # Possible reconstruction loss training.
+            with torch.no_grad():
                 Z_opt = opt.noise_amp * z_opt + z_prev
-                G_rec = G(Z_opt.detach(), z_prev, temperature=1 if current_scale != opt.token_insert else 1)
+                Z_noise = opt.noise_amp * noise + z_prev
+                #Z_rec, Z_alt = Z_opt, Z_noise           # train rec loss on z or z_opt?
+                Z_rec, Z_alt = Z_noise, Z_opt           # train rec loss on z or z_opt?
+                G_alt = G(Z_alt, z_prev, temperature=1 if current_scale != opt.token_insert else 1)
+
+            if opt.alpha != 0:  # i. e. we are trying to find an exact recreation of our input in the lat space
+                G_rec = G(Z_rec, z_prev, temperature=1 if current_scale != opt.token_insert else 1)
                 rec_loss = opt.alpha * F.mse_loss(G_rec, generator_real)
-                rec_loss.backward(retain_graph=False)  # TODO: Check for unexpected argument retain_graph=True
-                rec_loss = rec_loss.detach()
-            else:  # We are not trying to find an exact recreation
+                rec_loss.backward()
+            else:
                 rec_loss = torch.zeros([])
-                Z_opt = z_opt
+                with torch.no_grad():
+                    G_rec = G(Z_rec, z_prev, temperature=1 if current_scale != opt.token_insert else 1)
 
             optimizerG.step()
 
@@ -212,7 +271,7 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
                       step=step, sync=False, commit=True)
 
         # Rendering and logging images of levels
-        if epoch % 500 == 0 or epoch == (opt.niter - 1):
+        if print_epoch:
             if opt.token_insert >= 0 and opt.nc_current == len(token_group):
                 token_list = [list(group.keys())[0] for group in token_group]
             else:
@@ -223,11 +282,22 @@ def train_single_scale(D1, D2, G, generator_reals, discriminator1_reals, discrim
                 G(Z_opt.detach(), z_prev, temperature=1 if current_scale != opt.token_insert else 1).detach(),
                 token_list, opt.block2repr, opt.repr_type))
             real_scaled = encoded_to_ascii_level(generator_real.detach(), token_list, opt.block2repr, opt.repr_type)
+            g_rec_scaled = encoded_to_ascii_level(G_rec.detach(), token_list, opt.block2repr, opt.repr_type)
+            g_alt_scaled = encoded_to_ascii_level(G_alt.detach(), token_list, opt.block2repr, opt.repr_type)
             img3 = opt.ImgGen.render(real_scaled)
             wandb.log({f"G(z)@{current_scale}": wandb.Image(img),
                        f"G(z_opt)@{current_scale}": wandb.Image(img2),
                        f"G_real@{current_scale}": wandb.Image(img3)},
                       sync=False, commit=False)
+            print("Real scaled")
+            for row in real_scaled: print (row, end="")
+            print()
+            print("G(rec) scaled")
+            for row in g_rec_scaled: print (row, end="")
+            print()
+            print("G(alt) scaled")
+            for row in g_alt_scaled: print (row, end="")
+            print()
 
             real_scaled_path = os.path.join(wandb.run.dir, f"G_real@{current_scale}.txt")
             with open(real_scaled_path, "w") as f:
