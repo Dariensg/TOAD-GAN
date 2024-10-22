@@ -3,7 +3,7 @@ from torch.nn.functional import interpolate
 from torch.nn import Softmax
 
 from .tokens import TOKEN_DOWNSAMPLING_HIERARCHY as HIERARCHY
-from mario.level_utils import encoded_to_ascii_level, block2vec_to_ascii_level, ascii_to_one_hot_level, ascii_to_block2vec_level, one_hot_to_ascii_level
+from mario.level_utils import block2vec_to_ascii_level, ascii_to_one_hot_level, ascii_to_block2vec_level, one_hot_to_ascii_level
 
 
 def special_mario_downsampling(num_scales, scales, image, token_list, repr_type, block2repr, use_hierarchy=False):

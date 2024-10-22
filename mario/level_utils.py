@@ -91,8 +91,8 @@ def one_hot_to_ascii_level(level, tokens):
 
 def block2vec_to_ascii_level(level, block2repr):
     # Convert block2vec level into 2D array of block indices
-    block_embs = torch.stack(list(block2repr.values()))
-    world_vec = level.squeeze().permute(1,2,0).unsqueeze(3)
+    block_embs = torch.stack(list(block2repr.values())).to("cpu")
+    world_vec = level.squeeze().permute(1,2,0).unsqueeze(3).to("cpu")
     blocks_vec = block_embs.permute(1,0)[None,None,...]
     dist = (world_vec - blocks_vec).pow(2).sum(dim=-2)
     labels = dist.argmin(dim=-1)
