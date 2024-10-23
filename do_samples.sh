@@ -1,0 +1,9 @@
+python random_samples.py --input_name_1 birds.png --input_name_2 balloons.png --mode random_samples --alpha 0 --gen_start_scale 0
+python random_samples.py --input_name_1 birds.png --input_name_2 balloons.png --mode random_samples --alpha 0 --gen_start_scale 1
+python random_samples.py --input_name_1 birds.png --input_name_2 balloons.png --mode random_samples --alpha 0 --gen_start_scale 2
+python random_samples.py --input_name_1 birds.png --input_name_2 balloons.png --mode random_samples --alpha 0 --gen_start_scale 3
+python random_samples.py --input_name_1 birds.png --input_name_2 balloons.png --mode random_samples --alpha 0 --gen_start_scale 4
+python random_samples.py --input_name_1 birds.png --input_name_2 balloons.png --mode random_samples --alpha 0 --gen_start_scale 5
+python random_samples.py --input_name_1 birds.png --input_name_2 balloons.png --mode random_samples --alpha 0 --gen_start_scale 6
+python random_samples.py --input_name_1 birds.png --input_name_2 balloons.png --mode random_samples --alpha 0 --gen_start_scale 7
+python random_samples.py --input_name_1 birds.png --input_name_2 balloons.png --mode random_samples --alpha 0 --gen_start_scale 8
